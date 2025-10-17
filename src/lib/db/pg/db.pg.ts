@@ -20,38 +20,3 @@ const pool = new Pool({
 export const pgDb = drizzlePg(pool, {
   //   logger: new MyLogger(),
 });
-
-// Utility function to handle database operations with retry logic
-export async function withDbRetry<T>(
-  operation: () => Promise<T>,
-  maxRetries: number = 3,
-  delay: number = 1000
-): Promise<T> {
-  let lastError: Error;
-
-  for (let i = 0; i <= maxRetries; i++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-
-      // Check if it's a connection-related error that we should retry
-      const isConnectionError = error instanceof Error && (
-        error.message.includes('db_termination') ||
-        error.message.includes('connection') ||
-        error.message.includes('timeout') ||
-        error.message.includes('ECONNRESET') ||
-        error.message.includes('ENOTFOUND')
-      );
-
-      if (i === maxRetries || !isConnectionError) {
-        throw error;
-      }
-
-      console.warn(`Database operation failed (attempt ${i + 1}/${maxRetries + 1}):`, error);
-      await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // Exponential backoff
-    }
-  }
-
-  throw lastError!;
-}
