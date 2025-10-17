@@ -139,10 +139,7 @@ export function AppSidebarUserInner(props: {
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                window.open(
-                  "https://github.com/cgoinglove/better-chatbot/issues/new",
-                  "_blank",
-                );
+                window.open("https://github.com/", "_blank");
               }}
             >
               <GithubIcon className="size-4 fill-foreground" />
