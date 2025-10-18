@@ -13,10 +13,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useObjectState } from "@/hooks/use-object-state";
+import { createClient } from "@/lib/supabase/client";
 
 import { Loader } from "lucide-react";
-import { safe } from "ts-safe";
-import { authClient } from "auth/client";
 import { toast } from "sonner";
 import { GithubIcon } from "ui/github-icon";
 import { GoogleIcon } from "ui/google-icon";
@@ -44,30 +43,59 @@ export default function SignIn({
     password: "",
   });
 
-  const emailAndPasswordSignIn = () => {
+  const emailAndPasswordSignIn = async () => {
     setLoading(true);
-    safe(() =>
-      authClient.signIn.email(
-        {
-          email: formData.email,
-          password: formData.password,
-          callbackURL: "/",
-        },
-        {
-          onError(ctx) {
-            toast.error(ctx.error.message || ctx.error.statusText);
-          },
-        },
-      ),
-    )
-      .watch(() => setLoading(false))
-      .unwrap();
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Successfully signed in!");
+        // Redirect to workspace after successful sign-in
+        window.location.href = "/workspace";
+      }
+    } catch (_error) {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSocialSignIn = (provider: SocialAuthenticationProvider) => {
-    authClient.signIn.social({ provider }).catch((e) => {
-      toast.error(e.error);
-    });
+  const handleSocialSignIn = async (provider: SocialAuthenticationProvider) => {
+    try {
+      const supabase = createClient();
+
+      // Map Better Auth provider names to Supabase provider names
+      const providerMap: Record<
+        SocialAuthenticationProvider,
+        "google" | "github" | "azure"
+      > = {
+        google: "google",
+        github: "github",
+        microsoft: "azure",
+      };
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: providerMap[provider],
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        // For social auth, the redirect is handled by the callback page
+        toast.success("Redirecting to " + provider + "...");
+      }
+    } catch (_error) {
+      toast.error("An unexpected error occurred");
+    }
   };
   return (
     <div className="w-full h-full flex flex-col p-4 md:p-8 justify-center">
