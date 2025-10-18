@@ -7,9 +7,9 @@
   "type": "module",
   "scripts": {
     "sb": "dotenv -e .env -- npx supabase gen types typescript --project-id yxipxkqusjkxhfiguuxe --schema public > src/types/supabase.ts && pnpm sb:functions && pnpm sb:rls && pnpm sb:triggers",
-    "sb:functions": "dotenv -e .env -- npx tsx src/scripts/supabase/get-functions.ts",
-    "sb:rls": "dotenv -e .env -- npx tsx src/scripts/supabase/get-rls.ts",
-    "sb:triggers": "dotenv -e .env -- npx tsx src/scripts/supabase/get-triggers.ts",
+    "sb:functions": "dotenv -e .env -- npx tsx scripts/supabase/get-functions.ts",
+    "sb:rls": "dotenv -e .env -- npx tsx scripts/supabase/get-rls.ts",
+    "sb:triggers": "dotenv -e .env -- npx tsx scripts/supabase/get-triggers.ts",
     "dev": "next dev",
     "dev:turbopack": "next dev --turbopack",
     "dev:https": "next dev --experimental-https",
