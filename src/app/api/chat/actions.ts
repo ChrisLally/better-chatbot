@@ -27,7 +27,7 @@ import { toAny } from "lib/utils";
 import { McpServerCustomizationsPrompt, MCPToolInfo } from "app-types/mcp";
 import { serverCache } from "lib/cache";
 import { CacheKeys } from "lib/cache/cache-keys";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import logger from "logger";
 
 import { JSONSchema7 } from "json-schema";
@@ -36,8 +36,8 @@ import { jsonSchemaToZod } from "lib/json-schema-to-zod";
 import { Agent } from "app-types/agent";
 
 export async function getUserId() {
-  const session = await getSession();
-  const userId = session?.user?.id;
+  const user = await getSupabaseUser();
+  const userId = user?.id;
   if (!userId) {
     throw new Error("User not found");
   }
@@ -48,8 +48,8 @@ export async function generateTitleFromUserMessageAction({
   message,
   model,
 }: { message: UIMessage; model: LanguageModel }) {
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     throw new Error("Unauthorized");
   }
   const prompt = toAny(message.parts?.at(-1))?.text || "unknown";
@@ -64,8 +64,8 @@ export async function generateTitleFromUserMessageAction({
 }
 
 export async function selectThreadWithMessagesAction(threadId: string) {
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     throw new Error("Unauthorized");
   }
   const thread = await chatRepository.selectThread(threadId);
@@ -74,7 +74,7 @@ export async function selectThreadWithMessagesAction(threadId: string) {
     logger.error("Thread not found", threadId);
     return null;
   }
-  if (thread.userId !== session?.user.id) {
+  if (thread.userId !== user.id) {
     return null;
   }
   const messages = await chatRepository.selectMessagesByThreadId(threadId);

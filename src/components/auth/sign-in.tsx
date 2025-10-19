@@ -57,7 +57,7 @@ export default function SignIn({
       } else {
         toast.success("Successfully signed in!");
         // Redirect to workspace after successful sign-in
-        window.location.href = "/workspace";
+        window.location.href = "/";
       }
     } catch (_error) {
       toast.error("An unexpected error occurred");

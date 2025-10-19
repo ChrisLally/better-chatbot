@@ -1,5 +1,5 @@
 import { archiveRepository } from "lib/db/repository";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { z } from "zod";
 import { ArchiveUpdateSchema } from "app-types/archive";
 
@@ -7,9 +7,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -23,7 +23,7 @@ export async function GET(
     }
 
     // Check if user owns this archive
-    if (archive.userId !== session.user.id) {
+    if (archive.userId !== user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 
@@ -44,9 +44,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -60,7 +60,7 @@ export async function PUT(
       return Response.json({ error: "Archive not found" }, { status: 404 });
     }
 
-    if (existingArchive.userId !== session.user.id) {
+    if (existingArchive.userId !== user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 
@@ -90,9 +90,9 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -106,7 +106,7 @@ export async function DELETE(
       return Response.json({ error: "Archive not found" }, { status: 404 });
     }
 
-    if (existingArchive.userId !== session.user.id) {
+    if (existingArchive.userId !== user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 

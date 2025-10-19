@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { UserSession, UserSessionUser } from "app-types/user";
 
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import {
   requireAdminPermission,
   requireUserManagePermissionFor,
@@ -50,17 +50,8 @@ export function validatedActionWithUser<S extends z.ZodType<any, any>, T>(
   action: ValidatedActionWithUserFunction<S, T>,
 ) {
   return async (_prevState: ActionState, formData: FormData) => {
-    let session;
-    try {
-      session = await getSession();
-    } catch {
-      return {
-        success: false,
-        message: "User is not authenticated",
-      } as T;
-    }
-
-    if (!session || !session.user) {
+    const user = await getSupabaseUser();
+    if (!user) {
       return {
         success: false,
         message: "User is not authenticated",
@@ -75,7 +66,16 @@ export function validatedActionWithUser<S extends z.ZodType<any, any>, T>(
       } as T;
     }
 
-    return action(result.data, formData, session.user);
+    // Construct a UserSessionUser object that matches the old structure
+    const sessionUser: UserSessionUser = {
+      ...user,
+      id: user.id,
+      name: user.user_metadata?.name || user.email || "",
+      image: user.user_metadata?.avatar_url || null,
+      role: user.role || "user", // default to user role
+    };
+
+    return action(result.data, formData, sessionUser);
   };
 }
 
@@ -95,22 +95,24 @@ export function validatedActionWithAdminPermission<
   T,
 >(schema: S, action: ValidatedActionWithSimpleAdminAccess<S, T>) {
   return async (_prevState: ActionState, formData: FormData) => {
-    let userSession;
-    try {
-      userSession = await getSession();
-    } catch {
+    const user = await getSupabaseUser();
+    if (!user) {
       return {
         success: false,
         message: "User is not authenticated",
       } as T;
     }
 
-    if (!userSession || !userSession.user) {
-      return {
-        success: false,
-        message: "User is not authenticated",
-      } as T;
-    }
+    // Construct a UserSession object that matches the old structure
+    const userSession: UserSession = {
+      user: {
+        ...user,
+        id: user.id,
+        name: user.user_metadata?.name || user.email || "",
+        image: user.user_metadata?.avatar_url || null,
+        role: user.role || "user",
+      },
+    };
 
     const result = schema.safeParse(Object.fromEntries(formData));
     if (!result.success) {
@@ -153,22 +155,24 @@ export function validatedActionWithUserManagePermission<
   T,
 >(schema: S, action: ValidatedActionWithUserManageAccess<S, T>) {
   return async (_prevState: ActionState, formData: FormData) => {
-    let userSession;
-    try {
-      userSession = await getSession();
-    } catch {
+    const user = await getSupabaseUser();
+    if (!user) {
       return {
         success: false,
         message: "User is not authenticated",
       } as T;
     }
 
-    if (!userSession || !userSession.user) {
-      return {
-        success: false,
-        message: "User is not authenticated",
-      } as T;
-    }
+    // Construct a UserSession object that matches the old structure
+    const userSession: UserSession = {
+      user: {
+        ...user,
+        id: user.id,
+        name: user.user_metadata?.name || user.email || "",
+        image: user.user_metadata?.avatar_url || null,
+        role: user.role || "user",
+      },
+    };
 
     const result = schema.safeParse(Object.fromEntries(formData));
     if (!result.success) {

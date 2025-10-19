@@ -31,7 +31,7 @@ import { useTheme } from "next-themes";
 import { appStore } from "@/app/store";
 import { BASE_THEMES, COOKIE_KEY_LOCALE, SUPPORTED_LOCALES } from "lib/const";
 import { capitalizeFirstLetter, cn, fetcher } from "lib/utils";
-import { authClient } from "auth/client";
+import { signOut } from "@/lib/supabase/client";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { getLocaleAction } from "@/i18n/get-locale";
@@ -58,8 +58,8 @@ export function AppSidebarUserInner(props: {
   const t = useTranslations("Layout");
 
   const logout = () => {
-    authClient.signOut().finally(() => {
-      window.location.href = "/sign-in";
+    signOut().finally(() => {
+      window.location.href = "/login";
     });
   };
 

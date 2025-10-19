@@ -1,5 +1,5 @@
 import { agentRepository } from "lib/db/repository";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { z } from "zod";
 import { serverCache } from "lib/cache";
 import { CacheKeys } from "lib/cache/cache-keys";
@@ -7,9 +7,9 @@ import { AgentCreateSchema, AgentQuerySchema } from "app-types/agent";
 import { canCreateAgent } from "lib/auth/permissions";
 
 export async function GET(request: Request) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -32,11 +32,7 @@ export async function GET(request: Request) {
     }
 
     // Use the new simplified selectAgents method with database-level filtering and limiting
-    const agents = await agentRepository.selectAgents(
-      session.user.id,
-      filters,
-      limit,
-    );
+    const agents = await agentRepository.selectAgents(user.id, filters, limit);
     return Response.json(agents);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -52,9 +48,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -73,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const agent = await agentRepository.insertAgent({
       ...data,
-      userId: session.user.id,
+      userId: user.id,
     });
     serverCache.delete(CacheKeys.agentInstructions(agent.id));
 

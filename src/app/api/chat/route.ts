@@ -44,7 +44,7 @@ import {
   rememberAgentAction,
   rememberMcpServerCustomizationsAction,
 } from "./actions";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { colorize } from "consola/utils";
 import { generateUUID } from "lib/utils";
 import { nanoBananaTool, openaiImageTool } from "lib/ai/tools/image";
@@ -58,9 +58,9 @@ export async function POST(request: Request) {
   try {
     const json = await request.json();
 
-    const session = await getSession();
+    const user = await getSupabaseUser();
 
-    if (!session?.user.id) {
+    if (!user?.id) {
       return new Response("Unauthorized", { status: 401 });
     }
     const {
@@ -83,12 +83,12 @@ export async function POST(request: Request) {
       const newThread = await chatRepository.insertThread({
         id,
         title: "",
-        userId: session.user.id,
+        userId: user.id,
       });
       thread = await chatRepository.selectThreadDetails(newThread.id);
     }
 
-    if (thread!.userId !== session.user.id) {
+    if (thread!.userId !== user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       >
     )?.agentId;
 
-    const agent = await rememberAgentAction(agentId, session.user.id);
+    const agent = await rememberAgentAction(agentId, user.id);
 
     if (agent?.instructions?.mentions) {
       mentions.push(...agent.instructions.mentions);
@@ -197,13 +197,13 @@ export async function POST(request: Request) {
           .map(() => {
             if (Object.keys(MCP_TOOLS ?? {}).length === 0)
               throw new Error("No tools found");
-            return rememberMcpServerCustomizationsAction(session.user.id);
+            return rememberMcpServerCustomizationsAction(user.id);
           })
           .map((v) => filterMcpServerCustomizations(MCP_TOOLS!, v))
           .orElse({});
 
         const systemPrompt = mergeSystemPrompt(
-          buildUserSystemPrompt(session.user, userPreferences, agent),
+          buildUserSystemPrompt(user, userPreferences, agent),
           buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
           !supportToolCall && buildToolCallUnsupportedModelSystemPrompt,
         );
@@ -305,7 +305,7 @@ export async function POST(request: Request) {
         }
 
         if (agent) {
-          agentRepository.updateAgent(agent.id, session.user.id, {
+          agentRepository.updateAgent(agent.id, user.id, {
             updatedAt: new Date(),
           } as any);
         }

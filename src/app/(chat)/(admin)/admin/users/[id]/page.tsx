@@ -1,4 +1,4 @@
-import { notFound, redirect, unauthorized } from "next/navigation";
+import { notFound, unauthorized } from "next/navigation";
 import { getUserAccounts, getUser } from "lib/user/server";
 import { UserDetail } from "@/components/user/user-detail/user-detail";
 import {
@@ -7,7 +7,7 @@ import {
 } from "@/components/user/user-detail/user-stats-card-loader";
 
 import { Suspense } from "react";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { requireAdminPermission } from "auth/permissions";
 
 interface PageProps {
@@ -21,23 +21,22 @@ export default async function UserDetailPage({ params }: PageProps) {
   } catch (_error) {
     unauthorized();
   }
-  const session = await getSession();
-  if (!session) {
-    redirect("/login");
-  }
-  const [user, userAccountInfo] = await Promise.all([
+  // Middleware already handles auth redirect
+  const user = await getSupabaseUser();
+
+  const [targetUser, userAccountInfo] = await Promise.all([
     getUser(id),
     getUserAccounts(id),
   ]);
 
-  if (!user) {
+  if (!targetUser) {
     notFound();
   }
 
   return (
     <UserDetail
-      user={user}
-      currentUserId={session.user.id}
+      user={targetUser}
+      currentUserId={user!.id}
       userAccountInfo={userAccountInfo}
       userStatsSlot={
         <Suspense fallback={<UserStatsCardLoaderSkeleton />}>

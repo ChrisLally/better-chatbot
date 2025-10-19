@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { VercelAIMcpTool } from "app-types/mcp";
 import {
   filterMcpServerCustomizations,
@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await getSession();
+    const user = await getSupabaseUser();
 
-    if (!session?.user.id) {
+    if (!user?.id) {
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       mentions: ChatMention[];
     };
 
-    const agent = await rememberAgentAction(agentId, session.user.id);
+    const agent = await rememberAgentAction(agentId, user.id);
 
     agentId && logger.info(`[${agentId}] Agent: ${agent?.name}`);
 
@@ -66,13 +66,13 @@ export async function POST(request: NextRequest) {
       logger.info(`No tools found`);
     }
 
-    const userPreferences = await getUserPreferences(session.user.id);
+    const userPreferences = await getUserPreferences(user.id);
 
     const mcpServerCustomizations = await safe()
       .map(() => {
         if (Object.keys(allowedMcpTools ?? {}).length === 0)
           throw new Error("No tools found");
-        return rememberMcpServerCustomizationsAction(session.user.id);
+        return rememberMcpServerCustomizationsAction(user.id);
       })
       .map((v) => filterMcpServerCustomizations(allowedMcpTools!, v))
       .orElse({});
@@ -84,11 +84,7 @@ export async function POST(request: NextRequest) {
     );
 
     const systemPrompt = mergeSystemPrompt(
-      buildSpeechSystemPrompt(
-        session.user,
-        userPreferences ?? undefined,
-        agent,
-      ),
+      buildSpeechSystemPrompt(user, userPreferences ?? undefined, agent),
       buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
     );
 

@@ -3,9 +3,9 @@ import {
   convertDBNodeToUINode,
 } from "lib/ai/workflow/shared.workflow";
 import Workflow from "@/components/workflow/workflow";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { workflowRepository } from "lib/db/repository";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 export default async function WorkflowPage({
   params,
@@ -13,13 +13,10 @@ export default async function WorkflowPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getSession();
+  // Middleware already handles auth redirect
+  const user = await getSupabaseUser();
 
-  if (!session) {
-    redirect("/sign-in");
-  }
-
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
+  const hasAccess = await workflowRepository.checkAccess(id, user!.id);
   if (!hasAccess) {
     notFound();
   }
@@ -30,7 +27,7 @@ export default async function WorkflowPage({
   }
   const hasEditAccess = await workflowRepository.checkAccess(
     id,
-    session.user.id,
+    user!.id,
     false,
   );
   const initialNodes = workflow.nodes.map(convertDBNodeToUINode);

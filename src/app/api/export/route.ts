@@ -1,17 +1,17 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { chatExportRepository } from "lib/db/repository";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const user = await getSupabaseUser();
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const exports = await chatExportRepository.selectSummaryByExporterId(
-      session.user.id,
+      user.id,
     );
     return NextResponse.json(exports);
   } catch (error: any) {

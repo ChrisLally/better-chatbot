@@ -1,19 +1,17 @@
 import { archiveRepository } from "lib/db/repository";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { z } from "zod";
 import { ArchiveCreateSchema } from "app-types/archive";
 
 export async function GET() {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
-    const archives = await archiveRepository.getArchivesByUserId(
-      session.user.id,
-    );
+    const archives = await archiveRepository.getArchivesByUserId(user.id);
     return Response.json(archives);
   } catch (error) {
     console.error("Failed to fetch archives:", error);
@@ -22,9 +20,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -35,7 +33,7 @@ export async function POST(request: Request) {
     const archive = await archiveRepository.createArchive({
       name: data.name,
       description: data.description || null,
-      userId: session.user.id,
+      userId: user.id,
     });
 
     return Response.json(archive);

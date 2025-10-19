@@ -1,8 +1,10 @@
 "use server";
 
 import { validatedActionWithAdminPermission } from "lib/action-utils";
-import { headers } from "next/headers";
-import { auth } from "auth/server";
+import {
+  updateUserRole as updateSupabaseUserRole,
+  updateUserBanStatus as updateSupabaseUserBanStatus,
+} from "@/lib/supabase/actions";
 import { DEFAULT_USER_ROLE, userRolesInfo } from "app-types/roles";
 import {
   UpdateUserRoleSchema,
@@ -28,14 +30,7 @@ export const updateUserRolesAction = validatedActionWithAdminPermission(
         message: t("cannotUpdateOwnRole"),
       };
     }
-    await auth.api.setRole({
-      body: { userId, role },
-      headers: await headers(),
-    });
-    await auth.api.revokeUserSessions({
-      body: { userId },
-      headers: await headers(),
-    });
+    await updateSupabaseUserRole(userId, role);
     const user = await getUser(userId);
     if (!user) {
       return {
@@ -71,26 +66,7 @@ export const updateUserBanStatusAction = validatedActionWithAdminPermission(
       };
     }
     try {
-      if (!banned) {
-        await auth.api.banUser({
-          body: {
-            userId,
-            banReason:
-              banReason ||
-              (await getTranslations("User.Profile.common"))("bannedByAdmin"),
-          },
-          headers: await headers(),
-        });
-        await auth.api.revokeUserSessions({
-          body: { userId },
-          headers: await headers(),
-        });
-      } else {
-        await auth.api.unbanUser({
-          body: { userId },
-          headers: await headers(),
-        });
-      }
+      await updateSupabaseUserBanStatus(userId, !banned, banReason);
       const user = await getUser(userId);
       if (!user) {
         return {

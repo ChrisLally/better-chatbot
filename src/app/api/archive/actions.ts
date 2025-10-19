@@ -1,12 +1,12 @@
 "use server";
 
 import { archiveRepository } from "lib/db/repository";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { ArchiveCreateSchema, ArchiveUpdateSchema } from "app-types/archive";
 
 async function getUserId() {
-  const session = await getSession();
-  const userId = session?.user?.id;
+  const user = await getSupabaseUser();
+  const userId = user?.id;
   if (!userId) {
     throw new Error("User not found");
   }

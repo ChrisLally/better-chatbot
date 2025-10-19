@@ -1,4 +1,4 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import {
   UIMessage,
   convertToModelMessages,
@@ -20,8 +20,8 @@ export async function POST(request: Request) {
   try {
     const json = await request.json();
 
-    const session = await getSession();
-    if (!session) {
+    const user = await getSupabaseUser();
+    if (!user) {
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -35,12 +35,11 @@ export async function POST(request: Request) {
     };
     logger.info(`model: ${chatModel?.provider}/${chatModel?.model}`);
     const model = customModelProvider.getModel(chatModel);
-    const userPreferences =
-      (await getUserPreferences(session.user.id)) || undefined;
+    const userPreferences = (await getUserPreferences(user.id)) || undefined;
 
     return streamText({
       model,
-      system: `${buildUserSystemPrompt(session.user, userPreferences)} ${
+      system: `${buildUserSystemPrompt(user, userPreferences)} ${
         instructions ? `\n\n${instructions}` : ""
       }`.trim(),
       messages: convertToModelMessages(messages),

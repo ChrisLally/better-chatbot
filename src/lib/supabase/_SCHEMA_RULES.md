@@ -243,7 +243,7 @@ CREATE TABLE project_tasks (...);
 
 ```typescript
 //   GOOD: Use generated types with helpers
-import { Tables, TablesInsert } from "@/src/types/supabase"
+import { Tables, TablesInsert } from "@/types/supabase"
 type Chat = Tables<"chats">
 type ChatInsert = TablesInsert<"chats">
 

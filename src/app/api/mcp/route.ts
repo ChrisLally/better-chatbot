@@ -1,13 +1,13 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { McpServerTable } from "lib/db/pg/schema.pg";
 import { NextResponse } from "next/server";
 import { saveMcpClientAction } from "./actions";
 import { canCreateMCP } from "lib/auth/permissions";
-import { logger } from "better-auth";
+import logger from "lib/logger";
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session?.user?.id) {
+  const user = await getSupabaseUser();
+  if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

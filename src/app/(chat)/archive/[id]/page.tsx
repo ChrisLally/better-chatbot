@@ -1,5 +1,5 @@
 import { archiveRepository, chatRepository } from "lib/db/repository";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "ui/card";
@@ -41,15 +41,15 @@ interface ArchiveWithThreads {
 async function getArchiveWithThreads(
   archiveId: string,
 ): Promise<ArchiveWithThreads | null> {
-  const session = await getSession();
-  if (!session?.user?.id) return null;
+  const user = await getSupabaseUser();
+  if (!user?.id) return null;
 
   const [archive, archiveItems] = await Promise.all([
     archiveRepository.getArchiveById(archiveId),
     archiveRepository.getArchiveItems(archiveId),
   ]);
 
-  if (!archive || archive.userId !== session.user.id) return null;
+  if (!archive || archive.userId !== user.id) return null;
 
   const threadIds = archiveItems.map((item) => item.itemId);
 
@@ -57,9 +57,7 @@ async function getArchiveWithThreads(
     return { ...archive, threads: [] };
   }
 
-  const allThreads = await chatRepository.selectThreadsByUserId(
-    session.user.id,
-  );
+  const allThreads = await chatRepository.selectThreadsByUserId(user.id);
   const threads = allThreads
     .filter((thread) => threadIds.includes(thread.id))
     .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
@@ -73,11 +71,8 @@ export default async function ArchivePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getSession();
-
-  if (!session?.user?.id) {
-    redirect("/sign-in");
-  }
+  // Middleware already handles auth redirect
+  const user = await getSupabaseUser();
 
   const archive = await getArchiveWithThreads(id);
 
@@ -125,7 +120,7 @@ export default async function ArchivePage({
                 id: archive.id,
                 name: archive.name,
                 description: archive.description,
-                userId: session.user.id,
+                userId: user!.id,
                 createdAt: archive.createdAt,
                 updatedAt: archive.updatedAt,
               }}

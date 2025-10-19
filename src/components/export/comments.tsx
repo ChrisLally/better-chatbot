@@ -11,7 +11,7 @@ import { fetcher, truncateString } from "lib/utils";
 import { ChatExportCommentWithUser } from "app-types/chat-export";
 import { Avatar, AvatarFallback, AvatarImage } from "ui/avatar";
 import { Skeleton } from "ui/skeleton";
-import { authClient } from "auth/client";
+import { useAuth } from "@/context/auth-context";
 import { notify } from "lib/notify";
 import { useRouter } from "next/navigation";
 
@@ -33,9 +33,10 @@ export default function Comments({
   children?: React.ReactNode;
   defaultComments: ChatExportCommentWithUser[];
 }) {
-  const { data: session, isPending } = authClient.useSession();
+  const { user, loading } = useAuth();
 
-  const isLoggedIn = !!session?.user?.id;
+  const isLoggedIn = !!user?.id;
+  const isPending = loading;
 
   const [open, setOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);

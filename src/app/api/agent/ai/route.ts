@@ -5,7 +5,7 @@ import { buildAgentGenerationPrompt } from "lib/ai/prompts";
 import globalLogger from "logger";
 import { ChatModel } from "app-types/chat";
 
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { colorize } from "consola/utils";
 import { AgentGenerateSchema } from "app-types/agent";
 import { z } from "zod";
@@ -30,8 +30,8 @@ export async function POST(request: Request) {
 
     logger.info(`chatModel: ${chatModel?.provider}/${chatModel?.model}`);
 
-    const session = await getSession();
-    if (!session) {
+    const user = await getSupabaseUser();
+    if (!user?.id) {
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       })
       .unwrap();
 
-    await safe(workflowRepository.selectExecuteAbility(session.user.id))
+    await safe(workflowRepository.selectExecuteAbility(user.id))
       .ifOk((tools) => {
         tools.forEach((tool) => {
           toolNames.add(tool.name);

@@ -1,4 +1,4 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { bookmarkRepository } from "lib/db/repository";
 import { z } from "zod";
 
@@ -8,9 +8,9 @@ const BookmarkTable = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const hasAccess = await bookmarkRepository.checkItemAccess(
       itemId,
       itemType,
-      session.user.id,
+      user.id,
     );
 
     if (!hasAccess) {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     // Create bookmark
-    await bookmarkRepository.createBookmark(session.user.id, itemId, itemType);
+    await bookmarkRepository.createBookmark(user.id, itemId, itemType);
 
     return Response.json({ success: true });
   } catch (error) {
@@ -53,9 +53,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -64,7 +64,7 @@ export async function DELETE(request: Request) {
     const { itemId, itemType } = BookmarkTable.parse(body);
 
     // Remove bookmark
-    await bookmarkRepository.removeBookmark(session.user.id, itemId, itemType);
+    await bookmarkRepository.removeBookmark(user.id, itemId, itemType);
 
     return Response.json({ success: true });
   } catch (error) {

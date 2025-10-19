@@ -18,7 +18,7 @@ if (process.env.CI) {
   config();
 }
 
-import { auth } from "auth/auth-instance";
+import { getSupabaseAdmin } from "../src/lib/supabase/server-admin";
 import { USER_ROLES } from "app-types/roles";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -151,23 +151,25 @@ async function createUserWithBetterAuth(userData: {
       );
       user = existingUser;
     } else {
-      // Use Better Auth's signUp API to create user with proper password hashing
-      const result = await auth.api.signUpEmail({
-        body: {
-          email: userData.email,
-          password: userData.password,
+      // Use Supabase Admin API to create user with proper password hashing
+      const supabase = getSupabaseAdmin();
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: userData.email,
+        password: userData.password,
+        email_confirm: true, // Auto-confirm email for test users
+        user_metadata: {
           name: userData.name,
+          role: userData.role || USER_ROLES.USER,
         },
-        headers: new Headers({
-          "content-type": "application/json",
-        }),
       });
 
-      if (!result.user) {
-        throw new Error("User creation failed");
+      if (error || !data.user) {
+        throw new Error(
+          `User creation failed: ${error?.message || "Unknown error"}`,
+        );
       }
 
-      user = result.user;
+      user = { id: data.user.id, email: data.user.email, name: userData.name };
       console.log(`  Created new user ${userData.email} (ID: ${user.id})`);
     }
 

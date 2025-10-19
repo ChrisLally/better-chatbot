@@ -1,4 +1,4 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { chatExportRepository } from "lib/db/repository";
 import { ChatExportCommentCreateSchema } from "app-types/chat-export";
 import { NextRequest, NextResponse } from "next/server";
@@ -30,9 +30,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getSession();
+    const user = await getSupabaseUser();
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -41,7 +41,7 @@ export async function POST(
 
     const validatedData = ChatExportCommentCreateSchema.parse({
       exportId: id,
-      authorId: session.user.id,
+      authorId: user.id,
       parentId: body.parentId,
       content: body.content,
     });

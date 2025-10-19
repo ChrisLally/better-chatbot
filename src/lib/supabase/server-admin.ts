@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Database } from "@/src/types/supabase";
+import { Database } from "@/types/supabase";
 
 type TypedSupabaseClient = ReturnType<typeof createClient<Database>>;
 

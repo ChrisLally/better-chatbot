@@ -1,7 +1,7 @@
 import { McpServerCustomizationsPrompt, MCPToolInfo } from "app-types/mcp";
 
 import { UserPreferences } from "app-types/user";
-import { User } from "better-auth";
+import { User } from "@supabase/supabase-js";
 import { createMCPToolId } from "./mcp/mcp-tool-id";
 import { format } from "date-fns";
 import { Agent } from "app-types/agent";
@@ -75,7 +75,8 @@ export const buildUserSystemPrompt = (
 
   // User context section (first priority)
   const userInfo: string[] = [];
-  if (user?.name) userInfo.push(`Name: ${user.name}`);
+  if (user?.user_metadata?.name)
+    userInfo.push(`Name: ${user.user_metadata.name}`);
   if (user?.email) userInfo.push(`Email: ${user.email}`);
   if (userPreferences?.profession)
     userInfo.push(`Profession: ${userPreferences.profession}`);
@@ -99,7 +100,7 @@ You can assist with:
 </general_capabilities>`;
 
   // Communication preferences
-  const displayName = userPreferences?.displayName || user?.name;
+  const displayName = userPreferences?.displayName || user?.user_metadata?.name;
   const hasStyleExample = userPreferences?.responseStyleExample;
 
   if (displayName || hasStyleExample) {
@@ -157,7 +158,8 @@ export const buildSpeechSystemPrompt = (
 
   // User context section (first priority)
   const userInfo: string[] = [];
-  if (user?.name) userInfo.push(`Name: ${user.name}`);
+  if (user?.user_metadata?.name)
+    userInfo.push(`Name: ${user.user_metadata.name}`);
   if (user?.email) userInfo.push(`Email: ${user.email}`);
   if (userPreferences?.profession)
     userInfo.push(`Profession: ${userPreferences.profession}`);
@@ -181,7 +183,7 @@ You excel at conversational voice interactions by:
 </voice_capabilities>`;
 
   // Communication preferences
-  const displayName = userPreferences?.displayName || user?.name;
+  const displayName = userPreferences?.displayName || user?.user_metadata?.name;
   const hasStyleExample = userPreferences?.responseStyleExample;
 
   if (displayName || hasStyleExample) {

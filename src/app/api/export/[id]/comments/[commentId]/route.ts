@@ -1,4 +1,4 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { chatExportRepository } from "lib/db/repository";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,9 +7,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; commentId: string }> },
 ) {
   try {
-    const session = await getSession();
+    const user = await getSupabaseUser();
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -18,14 +18,14 @@ export async function DELETE(
     // Check if user has permission to delete this comment
     const hasAccess = await chatExportRepository.checkCommentAccess(
       commentId,
-      session.user.id,
+      user.id,
     );
 
     if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await chatExportRepository.deleteComment(commentId, session.user.id);
+    await chatExportRepository.deleteComment(commentId, user.id);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

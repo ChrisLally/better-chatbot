@@ -1,13 +1,11 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { workflowRepository } from "lib/db/repository";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return Response.json([]);
   }
-  const workflows = await workflowRepository.selectExecuteAbility(
-    session.user.id,
-  );
+  const workflows = await workflowRepository.selectExecuteAbility(user.id);
   return Response.json(workflows);
 }

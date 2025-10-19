@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { serverFileStorage, storageDriver } from "lib/file-storage";
 import globalLogger from "lib/logger";
 import { colorize } from "consola/utils";
@@ -123,8 +123,8 @@ async function handleGenericUpload(request: GenericUploadRequest) {
  */
 export async function POST(request: Request) {
   // Authenticate
-  const session = await getSession();
-  if (!session?.user?.id) {
+  const user = await getSupabaseUser();
+  if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
   try {
     // Route to appropriate handler
     if (isVercelBlobRequest(body)) {
-      return await handleVercelBlobUpload(body, request, session.user.id);
+      return await handleVercelBlobUpload(body, request, user.id);
     }
 
     return await handleGenericUpload(body as GenericUploadRequest);

@@ -1,6 +1,5 @@
 import "server-only";
-import { getSession } from "./auth-instance";
-import { getIsUserAdmin } from "lib/user/utils";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { admin, editor, user as userRole } from "./roles";
 import type { BetterAuthRole } from "./types";
 import { parseRoleString, isBetterAuthRole } from "./types";
@@ -21,10 +20,12 @@ import { parseRoleString, isBetterAuthRole } from "./types";
  */
 export async function hasAdminPermission(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    const isAdmin = getIsUserAdmin(session.user);
+    // SUPER DUPER HACK: This is a temporary solution until we can
+    // fully migrate the permissions system.
+    const isAdmin = user.role === "admin";
     return isAdmin;
   } catch (error) {
     console.error("Error checking admin permission:", error);
@@ -53,11 +54,11 @@ export async function canManageUsers(): Promise<boolean> {
  */
 export async function canManageUser(targetUserId: string): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
     // Can always manage own profile
-    if (session.user.id === targetUserId) return true;
+    if (user.id === targetUserId) return true;
 
     // Or has admin permissions to manage other users
     return await canManageUsers();
@@ -121,8 +122,8 @@ export async function requireUserManagePermissionFor(
  */
 export async function getCurrentUser() {
   try {
-    const session = await getSession();
-    return session?.user || null;
+    const user = await getSupabaseUser();
+    return user;
   } catch {
     return null;
   }
@@ -133,11 +134,11 @@ export async function getCurrentUser() {
  */
 export async function hasEditorPermission(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
     // Check if user is admin or editor
-    return session.user.role === "admin" || session.user.role === "editor";
+    return user.role === "admin" || user.role === "editor";
   } catch (error) {
     console.error("Error checking editor permission:", error);
     return false;
@@ -197,10 +198,10 @@ function hasPermission(
  */
 export async function canCreateAgent(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "create", "agent");
+    return hasPermission(user.role, "create", "agent");
   } catch (error) {
     console.error("Error checking agent create permission:", error);
     return false;
@@ -212,10 +213,10 @@ export async function canCreateAgent(): Promise<boolean> {
  */
 export async function canEditAgent(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "update", "agent");
+    return hasPermission(user.role, "update", "agent");
   } catch (error) {
     console.error("Error checking agent edit permission:", error);
     return false;
@@ -227,10 +228,10 @@ export async function canEditAgent(): Promise<boolean> {
  */
 export async function canDeleteAgent(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "delete", "agent");
+    return hasPermission(user.role, "delete", "agent");
   } catch (error) {
     console.error("Error checking agent delete permission:", error);
     return false;
@@ -242,10 +243,10 @@ export async function canDeleteAgent(): Promise<boolean> {
  */
 export async function canCreateWorkflow(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "create", "workflow");
+    return hasPermission(user.role, "create", "workflow");
   } catch (error) {
     console.error("Error checking workflow create permission:", error);
     return false;
@@ -257,10 +258,10 @@ export async function canCreateWorkflow(): Promise<boolean> {
  */
 export async function canEditWorkflow(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "update", "workflow");
+    return hasPermission(user.role, "update", "workflow");
   } catch (error) {
     console.error("Error checking workflow edit permission:", error);
     return false;
@@ -272,10 +273,10 @@ export async function canEditWorkflow(): Promise<boolean> {
  */
 export async function canDeleteWorkflow(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "delete", "workflow");
+    return hasPermission(user.role, "delete", "workflow");
   } catch (error) {
     console.error("Error checking workflow delete permission:", error);
     return false;
@@ -287,10 +288,10 @@ export async function canDeleteWorkflow(): Promise<boolean> {
  */
 export async function canCreateMCP(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "create", "mcp");
+    return hasPermission(user.role, "create", "mcp");
   } catch (error) {
     console.error("Error checking MCP create permission:", error);
     return false;
@@ -302,10 +303,10 @@ export async function canCreateMCP(): Promise<boolean> {
  */
 export async function canEditMCP(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "update", "mcp");
+    return hasPermission(user.role, "update", "mcp");
   } catch (error) {
     console.error("Error checking MCP edit permission:", error);
     return false;
@@ -317,10 +318,10 @@ export async function canEditMCP(): Promise<boolean> {
  */
 export async function canChangeVisibilityMCP(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "share", "mcp");
+    return hasPermission(user.role, "share", "mcp");
   } catch (error) {
     console.error("Error checking MCP visibility change permission:", error);
     return false;
@@ -332,10 +333,10 @@ export async function canChangeVisibilityMCP(): Promise<boolean> {
  */
 export async function canDeleteMCP(): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
-    return hasPermission(session.user.role, "delete", "mcp");
+    return hasPermission(user.role, "delete", "mcp");
   } catch (error) {
     console.error("Error checking MCP delete permission:", error);
     return false;
@@ -365,14 +366,14 @@ export async function canManageMCPServer(
   visibility: string = "private",
 ): Promise<boolean> {
   try {
-    const session = await getSession();
-    if (!session?.user) return false;
+    const user = await getSupabaseUser();
+    if (!user) return false;
 
     // Admins can manage all MCP servers
-    if (session.user.role === "admin") return true;
+    if (user.role === "admin") return true;
 
     // Users can only manage their own private MCP servers
-    if (session.user.id === mcpOwnerId && visibility === "private") return true;
+    if (user.id === mcpOwnerId && visibility === "private") return true;
 
     return false;
   } catch (error) {

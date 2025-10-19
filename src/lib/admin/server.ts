@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSession } from "lib/auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { AdminUsersQuery, AdminUsersPaginated } from "app-types/admin";
 import {
   requireAdminPermission,
@@ -14,24 +14,24 @@ export const DEFAULT_SORT_DIRECTION = "desc";
 
 /**
  * Require an admin session
- * This is a wrapper around the getSession function
+ * This is a wrapper around the getSupabaseUser function
  * that throws an error if the user is not an admin
  *
  * @deprecated Use requireAdminPermission() from lib/auth/permissions instead
  */
 export async function requireAdminSession(): Promise<
-  NonNullable<Awaited<ReturnType<typeof getSession>>>
+  NonNullable<Awaited<ReturnType<typeof getSupabaseUser>>>
 > {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session) {
+  if (!user) {
     throw new Error("Unauthorized: No session found");
   }
 
   // Use our new permission system internally
   await requireAdminPermission("access admin functions");
 
-  return session;
+  return user;
 }
 
 /**
@@ -43,7 +43,7 @@ export async function getAdminUsers(
 ): Promise<AdminUsersPaginated> {
   // Use our new permission system
   await requireUserListPermission("list users in admin panel");
-  await getSession();
+  await getSupabaseUser();
 
   try {
     // Use our custom repository with improved search

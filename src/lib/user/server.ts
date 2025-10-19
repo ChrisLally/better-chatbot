@@ -1,10 +1,9 @@
 "use server";
 
 import { BasicUserWithLastLogin, UserPreferences } from "app-types/user";
-import { auth, getSession } from "auth/server";
-import { Session } from "better-auth";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
+import { createClient } from "@/lib/supabase/server";
 import { userRepository } from "lib/db/repository";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { customModelProvider } from "@/lib/ai/models";
 
@@ -39,10 +38,28 @@ export async function getUser(
  */
 export async function getUserAccounts(userId?: string) {
   const resolvedUserId = await getUserIdAndCheckAccess(userId);
-  const accounts = await auth.api.listUserAccounts({
-    params: { userId: resolvedUserId },
-    headers: await headers(),
-  });
+  const supabase = await createClient();
+
+  // Get user identities from Supabase Auth
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.admin.getUserById(resolvedUserId);
+
+  if (error || !user) {
+    return { accounts: [], hasPassword: false, oauthProviders: [] };
+  }
+
+  // Transform Supabase identities to match the old format
+  const accounts =
+    user.identities?.map((identity) => ({
+      id: identity.id,
+      userId: user.id,
+      providerId:
+        identity.provider === "email" ? "credential" : identity.provider,
+      accountId: identity.identity_data?.sub || identity.id,
+    })) || [];
+
   const hasPassword = accounts.some(
     (account) => account.providerId === "credential",
   );
@@ -54,16 +71,20 @@ export async function getUserAccounts(userId?: string) {
 
 /**
  * List user sessions
- * We use the better-auth API to list the sessions
+ * We use Supabase Auth to list the sessions
  * We can only list sessions for the current user as a non-admin user
  * We can list sessions for any user as an admin user
+ *
+ * Note: Supabase Auth doesn't expose session listing via the API.
+ * Sessions are managed internally by Supabase and accessed via cookies/tokens.
  */
-export async function getUserSessions(userId?: string): Promise<Session[]> {
-  const resolvedUserId = await getUserIdAndCheckAccess(userId);
-  return await auth.api.listSessions({
-    params: { userId: resolvedUserId },
-    headers: await headers(),
-  });
+export async function getUserSessions(userId?: string): Promise<any[]> {
+  await getUserIdAndCheckAccess(userId);
+
+  // Supabase Auth doesn't provide a way to list user sessions
+  // Sessions are managed internally and accessed via auth tokens
+  // Return empty array for now - this feature is not available with Supabase Auth
+  return [];
 }
 
 /**
@@ -77,11 +98,11 @@ export async function getUserSessions(userId?: string): Promise<Session[]> {
 export async function getUserIdAndCheckAccess(
   requestedUserId?: string,
 ): Promise<string> {
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     notFound();
   }
-  const currentUserId = session.user.id;
+  const currentUserId = user.id;
   const userId = requestedUserId ? requestedUserId : currentUserId;
   if (!userId) {
     notFound();

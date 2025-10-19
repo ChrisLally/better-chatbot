@@ -1,5 +1,5 @@
 import { McpToolCustomizationZodSchema } from "app-types/mcp";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { serverCache } from "lib/cache";
 import { CacheKeys } from "lib/cache/cache-keys";
 import { mcpMcpToolCustomizationRepository } from "lib/db/repository";
@@ -9,14 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ server: string; tool: string }> },
 ) {
   const { server, tool } = await params;
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   const result = await mcpMcpToolCustomizationRepository.select({
     mcpServerId: server,
-    userId: session.user.id,
+    userId: user.id,
     toolName: tool,
   });
   return Response.json(result ?? {});
@@ -27,8 +27,8 @@ export async function POST(
   { params }: { params: Promise<{ server: string; tool: string }> },
 ) {
   const { server, tool } = await params;
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -44,12 +44,12 @@ export async function POST(
 
   const result =
     await mcpMcpToolCustomizationRepository.upsertToolCustomization({
-      userId: session.user.id,
+      userId: user.id,
       mcpServerId,
       toolName,
       prompt,
     });
-  const key = CacheKeys.mcpServerCustomizations(session.user.id);
+  const key = CacheKeys.mcpServerCustomizations(user.id);
   void serverCache.delete(key);
 
   return Response.json(result);
@@ -60,17 +60,17 @@ export async function DELETE(
   { params }: { params: Promise<{ server: string; tool: string }> },
 ) {
   const { server, tool } = await params;
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   await mcpMcpToolCustomizationRepository.deleteToolCustomization({
     mcpServerId: server,
-    userId: session.user.id,
+    userId: user.id,
     toolName: tool,
   });
-  const key = CacheKeys.mcpServerCustomizations(session.user.id);
+  const key = CacheKeys.mcpServerCustomizations(user.id);
   void serverCache.delete(key);
 
   return Response.json({ success: true });

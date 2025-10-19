@@ -1,19 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
-import { USER_ROLES } from "app-types/roles";
 
 // Mock server-only module
 vi.mock("server-only", () => ({}));
 
 // Mock the auth modules
-vi.mock("auth/server", () => ({
-  getSession: vi.fn(),
+vi.mock("@/lib/supabase/auth-helpers", () => ({
+  getSupabaseUser: vi.fn(),
 }));
 
 // Import after mocks
 import { validatedAction, validatedActionWithUser } from "./action-utils";
 
-const { getSession } = await import("auth/server");
+const { getSupabaseUser } = await import("@/lib/supabase/auth-helpers");
 
 describe("action-utils", () => {
   beforeEach(() => {
@@ -64,17 +63,16 @@ describe("action-utils", () => {
 
   describe("validatedActionWithUser", () => {
     it("should call action with user when authenticated", async () => {
-      const mockUser = {
+      const mockSupabaseUser = {
         id: "user-1",
-        name: "John Doe",
         email: "john@example.com",
-        role: USER_ROLES.USER,
+        user_metadata: {
+          name: "John Doe",
+        },
+        role: "user",
       };
 
-      vi.mocked(getSession).mockResolvedValue({
-        user: mockUser,
-        session: {} as any,
-      } as any);
+      vi.mocked(getSupabaseUser).mockResolvedValue(mockSupabaseUser as any);
 
       const schema = z.object({ data: z.string() });
       const mockAction = vi.fn().mockResolvedValue({ success: true });
@@ -88,13 +86,18 @@ describe("action-utils", () => {
       expect(mockAction).toHaveBeenCalledWith(
         { data: "test" },
         formData,
-        mockUser,
+        expect.objectContaining({
+          id: "user-1",
+          name: "John Doe",
+          email: "john@example.com",
+          role: "user",
+        }),
       );
       expect(result).toEqual({ success: true });
     });
 
     it("should return error when user is not authenticated", async () => {
-      vi.mocked(getSession).mockRejectedValue(new Error("Unauthorized"));
+      vi.mocked(getSupabaseUser).mockResolvedValue(null);
 
       const schema = z.object({ data: z.string() });
       const mockAction = vi.fn();

@@ -1,4 +1,4 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { getUser } from "lib/user/server";
 import { canManageUser } from "lib/auth/permissions";
 import { NextResponse, NextRequest } from "next/server";
@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getSession();
-    if (!session) {
+    const user = await getSupabaseUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { id } = await params;
@@ -18,8 +18,8 @@ export async function GET(
     if (!(await canManageUser(id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const user = await getUser(id);
-    return NextResponse.json(user ?? {});
+    const userDetails = await getUser(id);
+    return NextResponse.json(userDetails ?? {});
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to get user details" },

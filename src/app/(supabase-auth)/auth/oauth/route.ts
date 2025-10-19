@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 // The client you created from the Server-Side Auth instructions
-import { createClient } from "@/src/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -8,10 +8,10 @@ export async function GET(request: Request) {
   const error = searchParams.get("error");
 
   // if "next" is in param, use it as the redirect URL
-  let next = searchParams.get("next") ?? "/workspace";
+  let next = searchParams.get("next") ?? "/";
   if (!next.startsWith("/")) {
     // if "next" is not a relative URL, use the default
-    next = "/workspace";
+    next = "/";
   }
 
   // Handle OAuth errors

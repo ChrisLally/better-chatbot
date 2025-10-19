@@ -70,7 +70,7 @@ import { CountAnimation } from "ui/count-animation";
 import { Separator } from "ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
 import { AgentSummary } from "app-types/agent";
-import { authClient } from "auth/client";
+import { useAuth } from "@/context/auth-context";
 
 import { Alert, AlertDescription, AlertTitle } from "ui/alert";
 import { safe } from "ts-safe";
@@ -452,8 +452,8 @@ function WorkflowToolSelector({
 }) {
   const t = useTranslations();
   const workflowToolList = appStore((state) => state.workflowToolList);
-  const { data: session } = authClient.useSession();
-  const currentUserId = session?.user?.id;
+  const { user } = useAuth();
+  const currentUserId = user?.id;
 
   // Separate user's workflows from shared workflows
   const myWorkflows = workflowToolList.filter(

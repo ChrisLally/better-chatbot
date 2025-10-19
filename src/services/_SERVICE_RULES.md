@@ -31,9 +31,9 @@ src/services/
 
 ```typescript
 //   GOOD: Use @ alias
-import { getUser } from '@/src/services/supabase/users-service';
-import { generateAgentStepResponseWithMCP } from '@/src/services/ai/ai-service';
-import { buildSystemPrompt } from '@/src/services/ai/prompts';
+import { getUser } from '@/services/supabase/users-service';
+import { generateAgentStepResponseWithMCP } from '@/services/ai/ai-service';
+import { buildSystemPrompt } from '@/services/ai/prompts';
 
 // L BAD: Relative imports
 import { getUser } from '../supabase/users-service';
@@ -46,10 +46,10 @@ import { generateAgentStepResponseWithMCP } from './ai-service';
 
 ```typescript
 //   GOOD: Static imports at top
-import { getProjectTaskStep } from '@/src/services/supabase/project-task-steps-service';
+import { getProjectTaskStep } from '@/services/supabase/project-task-steps-service';
 
 // L BAD: Dynamic imports in function body (unless needed for code splitting)
-const { getProjectTaskStep } = await import('@/src/services/supabase/...');
+const { getProjectTaskStep } = await import('@/services/supabase/...');
 ```
 
 **Exception**: Dynamic imports are acceptable for lazy-loading or conditional code splitting, but not for standard service dependencies.
@@ -60,7 +60,7 @@ const { getProjectTaskStep } = await import('@/src/services/supabase/...');
 
 ```typescript
 //   GOOD: AI service delegates to database service
-import { updateProjectTaskStep } from '@/src/services/supabase/project-task-steps-service';
+import { updateProjectTaskStep } from '@/services/supabase/project-task-steps-service';
 await updateProjectTaskStep(stepId, { status: 'completed' });
 
 // L BAD: AI service directly queries database
@@ -183,7 +183,7 @@ async function complexOperation(): Promise<{
 import type {
   RequestType,
   ResponseType
-} from '@/src/types/{domain}-types';
+} from '@/types/{domain}-types';
 
 export async function serviceFunction({
   param1,
@@ -196,7 +196,7 @@ export async function serviceFunction({
 **Rule**: All service functions must:
 - Have explicit parameter types
 - Have explicit return types
-- Use domain-specific types from `@/src/types/`
+- Use domain-specific types from `@/types/`
 
 ## 8. Debug Logging (Standardized)
 
@@ -367,9 +367,9 @@ export function fetchData(id: string): Promise<Data> {
 - **Async Patterns**: Consistent async/await usage
 
 **Related Documentation**:
-- `@/src/services/ai/_AI_SERVICE_RULES.md` - AI service-specific rules
-- `@/src/services/supabase/_SUPABASE_SERVICE_RULES.md` - Supabase service-specific rules
-- `@/src/services/langfuse/_LANGFUSE_SERVICE_RULES.md` - Langfuse tracing integration rules
-- `@/src/lib/supabase/server.ts` - Client authentication implementation
+- `@/services/ai/_AI_SERVICE_RULES.md` - AI service-specific rules
+- `@/services/supabase/_SUPABASE_SERVICE_RULES.md` - Supabase service-specific rules
+- `@/services/langfuse/_LANGFUSE_SERVICE_RULES.md` - Langfuse tracing integration rules
+- `@/lib/supabase/server.ts` - Client authentication implementation
 
 **Core Principle**: Services are the coordination layer between your application and external systems (databases, APIs, AI models). Keep them pure, predictable, and focused on their specific domain while following these universal patterns for consistency and maintainability.

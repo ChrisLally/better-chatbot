@@ -5,8 +5,8 @@ import { USER_ROLES } from "app-types/roles";
 vi.mock("server-only", () => ({}));
 
 // Mock the auth module
-vi.mock("lib/auth/server", () => ({
-  getSession: vi.fn(),
+vi.mock("@/lib/supabase/auth-helpers", () => ({
+  getSupabaseUser: vi.fn(),
 }));
 
 // Mock the new permission system
@@ -37,7 +37,7 @@ import {
   DEFAULT_SORT_BY,
   DEFAULT_SORT_DIRECTION,
 } from "./server";
-import { getSession } from "lib/auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import {
   requireAdminPermission,
   requireUserListPermission,
@@ -73,7 +73,7 @@ describe("Admin Server - Business Logic", () => {
           session: { id: "session-1" },
         };
 
-        vi.mocked(getSession).mockResolvedValue(mockSession as any);
+        vi.mocked(getSupabaseUser).mockResolvedValue(mockSession as any);
 
         if (testCase.shouldPass) {
           vi.mocked(hasAdminPermission).mockResolvedValue(true);
@@ -98,7 +98,7 @@ describe("Admin Server - Business Logic", () => {
   describe("getAdminUsers - Query Parameter Handling", () => {
     beforeEach(() => {
       // Mock admin session by default
-      vi.mocked(getSession).mockResolvedValue({
+      vi.mocked(getSupabaseUser).mockResolvedValue({
         user: { id: "admin-1", role: USER_ROLES.ADMIN },
       } as any);
       // Mock permissions by default
@@ -217,7 +217,7 @@ describe("Admin Server - Business Logic", () => {
     });
 
     it("should enforce admin access before making API call", async () => {
-      vi.mocked(getSession).mockResolvedValue({
+      vi.mocked(getSupabaseUser).mockResolvedValue({
         user: { id: "user-1", role: USER_ROLES.USER },
       } as any);
       vi.mocked(canListUsers).mockResolvedValue(false);

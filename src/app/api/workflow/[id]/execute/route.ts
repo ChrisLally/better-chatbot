@@ -1,4 +1,4 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { createWorkflowExecutor } from "lib/ai/workflow/executor/workflow-executor";
 import { workflowRepository } from "lib/db/repository";
 import { encodeWorkflowEvent } from "lib/ai/workflow/shared.workflow";
@@ -12,11 +12,11 @@ export async function POST(
 ) {
   const { id } = await params;
   const { query } = await request.json();
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
+  const hasAccess = await workflowRepository.checkAccess(id, user.id);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }

@@ -1,13 +1,13 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { chatRepository } from "lib/db/repository";
 
 export async function GET() {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const threads = await chatRepository.selectThreadsByUserId(session.user.id);
+  const threads = await chatRepository.selectThreadsByUserId(user.id);
   return Response.json(threads);
 }

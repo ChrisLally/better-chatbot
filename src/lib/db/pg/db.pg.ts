@@ -13,10 +13,8 @@ const pool = new Pool({
   connectionString: process.env.POSTGRES_URL!,
   max: 20, // Maximum number of connections
   idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-  connectionTimeoutMillis: 2000, // Return error after 2 seconds if connection could not be established
-  acquireTimeoutMillis: 60000, // Return error after 1 minute if no connection becomes available
+  connectionTimeoutMillis: 2000,
 });
-
 export const pgDb = drizzlePg(pool, {
   //   logger: new MyLogger(),
 });

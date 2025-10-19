@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { generateUUID } from "lib/utils";
 import { AgentSummary } from "app-types/agent";
 import Link from "next/link";
-import { authClient } from "auth/client";
+import { useAuth } from "@/context/auth-context";
 
 type Props = PropsWithChildren<{
   agent: AgentSummary;
@@ -20,8 +20,8 @@ type Props = PropsWithChildren<{
 export function AgentDropdown({ agent, children, side, align }: Props) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
-  const { data: session } = authClient.useSession();
-  const isOwner = session?.user?.id === agent.userId;
+  const { user } = useAuth();
+  const isOwner = user?.id === agent.userId;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

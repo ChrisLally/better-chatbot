@@ -1,5 +1,5 @@
 import { archiveRepository } from "lib/db/repository";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { z } from "zod";
 
 const AddItemSchema = z.object({
@@ -10,9 +10,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -26,7 +26,7 @@ export async function GET(
       return Response.json({ error: "Archive not found" }, { status: 404 });
     }
 
-    if (archive.userId !== session.user.id) {
+    if (archive.userId !== user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 
@@ -42,9 +42,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user.id) {
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -58,7 +58,7 @@ export async function POST(
       return Response.json({ error: "Archive not found" }, { status: 404 });
     }
 
-    if (archive.userId !== session.user.id) {
+    if (archive.userId !== user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 
@@ -68,7 +68,7 @@ export async function POST(
     const item = await archiveRepository.addItemToArchive(
       id,
       data.itemId,
-      session.user.id,
+      user.id,
     );
 
     return Response.json(item);

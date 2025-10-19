@@ -4,8 +4,11 @@ import {
   validatedActionWithAdminPermission,
   validatedActionWithUserManagePermission,
 } from "lib/action-utils";
-import { headers } from "next/headers";
-import { auth } from "auth/server";
+import {
+  updateUser as updateSupabaseUser,
+  deleteUser as deleteSupabaseUser,
+  updateUserPassword as updateSupabaseUserPassword,
+} from "@/lib/supabase/actions";
 import {
   UpdateUserDetailsSchema,
   DeleteUserSchema,
@@ -14,9 +17,9 @@ import {
   DeleteUserActionState,
   UpdateUserPasswordActionState,
 } from "./validations";
-import { getUser, getUserAccounts, updateUserDetails } from "lib/user/server";
+import { getUser, getUserAccounts } from "lib/user/server";
 import { getTranslations } from "next-intl/server";
-import { logger } from "better-auth";
+import logger from "lib/logger";
 import {
   generateImageWithOpenAI,
   generateImageWithXAI,
@@ -29,7 +32,7 @@ export const updateUserImageAction = validatedActionWithUserManagePermission(
   async (
     data,
     userId,
-    userSession,
+    _userSession,
     isOwnResource,
   ): Promise<UpdateUserActionState> => {
     const t = await getTranslations("User.Profile.common");
@@ -37,20 +40,7 @@ export const updateUserImageAction = validatedActionWithUserManagePermission(
     try {
       const { image } = data;
 
-      if (isOwnResource) {
-        await auth.api.updateUser({
-          returnHeaders: true,
-          body: { image },
-          headers: await headers(),
-        });
-      } else {
-        await updateUserDetails(
-          userId,
-          userSession.user.name,
-          userSession.user.email || "",
-          image,
-        );
-      }
+      await updateSupabaseUser(userId, { image });
 
       const user = await getUser(userId);
       if (!user) {
@@ -101,25 +91,12 @@ export const updateUserDetailsAction = validatedActionWithUserManagePermission(
       const isDifferentName = name && name !== userSession.user.name;
       const isDifferentImage = image && image !== userSession.user.image;
 
-      // this forces a session update for the current user, getting the latest data
-      if (isOwnResource) {
-        if (isDifferentName || isDifferentImage) {
-          await auth.api.updateUser({
-            returnHeaders: true,
-            body: { name, ...(image && { image }) },
-            headers: await headers(),
-          });
-        }
-        if (isDifferentEmail) {
-          await auth.api.changeEmail({
-            returnHeaders: true,
-            body: { newEmail: email },
-            headers: await headers(),
-          });
-        }
-      } else {
-        await updateUserDetails(userId, name, email);
-      }
+      await updateSupabaseUser(userId, {
+        name,
+        email,
+        image,
+        userId,
+      });
 
       if (isDifferentEmail) user.email = email;
       if (isDifferentName) user.name = name;
@@ -147,10 +124,7 @@ export const deleteUserAction = validatedActionWithAdminPermission(
     const t = await getTranslations("Admin.UserDelete");
     const { userId } = data;
     try {
-      await auth.api.removeUser({
-        body: { userId },
-        headers: await headers(),
-      });
+      await deleteSupabaseUser(userId);
     } catch (error) {
       console.error("Failed to delete user:", error);
       return {
@@ -201,19 +175,13 @@ export const updateUserPasswordAction = validatedActionWithUserManagePermission(
             message: t("failedToUpdatePassword"),
           };
         }
-        await auth.api.changePassword({
-          body: { currentPassword, newPassword, revokeOtherSessions: true },
-          headers: await headers(),
-        });
+        // This part of the logic needs to be handled on the client-side with Supabase
+        // For now, we'll throw an error to indicate this needs to be refactored
+        throw new Error(
+          "Changing the current user's password must be done on the client-side.",
+        );
       } else {
-        await auth.api.setUserPassword({
-          body: { userId, newPassword },
-          headers: await headers(),
-        });
-        await auth.api.revokeUserSessions({
-          body: { userId },
-          headers: await headers(),
-        });
+        await updateSupabaseUserPassword(userId, newPassword);
       }
       return {
         success: true,

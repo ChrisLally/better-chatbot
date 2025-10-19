@@ -1,7 +1,7 @@
 "use client";
 import { useObjectState } from "@/hooks/use-object-state";
 import { UserPreferences } from "app-types/user";
-import { authClient } from "auth/client";
+import { useAuth } from "@/context/auth-context";
 import { fetcher } from "lib/utils";
 import {
   AlertCircle,
@@ -54,7 +54,7 @@ export function UserInstructionsContent() {
     [],
   );
 
-  const { data: session } = authClient.useSession();
+  const { user } = useAuth();
 
   const [preferences, setPreferences] = useObjectState<UserPreferences>({
     displayName: "",
@@ -125,7 +125,7 @@ export function UserInstructionsContent() {
             <Skeleton className="h-9" />
           ) : (
             <Input
-              placeholder={session?.user.name || ""}
+              placeholder={user?.user_metadata?.name || user?.email || ""}
               value={preferences.displayName}
               onChange={(e) => {
                 setPreferences({

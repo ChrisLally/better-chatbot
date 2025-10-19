@@ -1,4 +1,4 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { workflowRepository } from "lib/db/repository";
 import { canEditWorkflow, canDeleteWorkflow } from "lib/auth/permissions";
 
@@ -7,11 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const hasAccess = await workflowRepository.checkAccess(id, session.user.id);
+  const hasAccess = await workflowRepository.checkAccess(id, user.id);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -26,8 +26,8 @@ export async function PUT(
   const { id } = await params;
   const { visibility, isPublished } = await request.json();
 
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -39,11 +39,7 @@ export async function PUT(
       { status: 403 },
     );
   }
-  const hasAccess = await workflowRepository.checkAccess(
-    id,
-    session.user.id,
-    false,
-  );
+  const hasAccess = await workflowRepository.checkAccess(id, user.id, false);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -70,8 +66,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const session = await getSession();
-  if (!session) {
+  const user = await getSupabaseUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -83,11 +79,7 @@ export async function DELETE(
       { status: 403 },
     );
   }
-  const hasAccess = await workflowRepository.checkAccess(
-    id,
-    session.user.id,
-    false,
-  );
+  const hasAccess = await workflowRepository.checkAccess(id, user.id, false);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }

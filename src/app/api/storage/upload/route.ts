@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { serverFileStorage, storageDriver } from "lib/file-storage";
 import { checkStorageAction } from "../actions";
 
 export async function POST(request: Request) {
-  const session = await getSession();
+  const user = await getSupabaseUser();
 
-  if (!session?.user?.id) {
+  if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

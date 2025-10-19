@@ -2,7 +2,7 @@ import { z } from "zod";
 import { passwordSchema } from "lib/validations/password";
 
 import { UserEntity } from "lib/db/pg/schema.pg";
-import { getSession } from "auth/server";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 export type UserPreferences = {
   displayName?: string;
@@ -38,7 +38,14 @@ export interface BasicUserWithLastLogin extends BasicUser {
   lastLogin: Date | null;
 }
 
-export type UserSession = NonNullable<Awaited<ReturnType<typeof getSession>>>;
+export type UserSession = {
+  user: SupabaseUser & {
+    id: string;
+    role: string;
+    name: string;
+    image?: string | null;
+  };
+};
 
 export type UserSessionUser = UserSession["user"];
 

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/src/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function AuthCallback() {
 
         if (data.session) {
           console.log("Successfully authenticated:", data.session.user);
-          router.push("/workspace");
+          router.push("/");
         } else {
           // Try to get session from URL hash
           const hashParams = new URLSearchParams(
@@ -32,7 +32,7 @@ export default function AuthCallback() {
 
           if (accessToken) {
             // Session should be automatically set by Supabase
-            router.push("/workspace");
+            router.push("/");
           } else {
             router.push("/auth/error?error=no_session");
           }

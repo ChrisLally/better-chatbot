@@ -2,17 +2,17 @@
 
 *Supabase-specific guidelines for database service architecture*
 
-**See also**: `@/src/services/_SERVICE_RULES.md` for universal service layer rules
+**See also**: `@/services/_SERVICE_RULES.md` for universal service layer rules
 
 ## Core Philosophy
 
 **Principle**: Supabase services are pure functions for database operations. They handle data access logic while keeping business logic in hooks and components.
 
-**Note**: This document covers Supabase-specific patterns only. For general service rules (imports, error handling, naming conventions, etc.), see `@/src/services/_SERVICE_RULES.md`.
+**Note**: This document covers Supabase-specific patterns only. For general service rules (imports, error handling, naming conventions, etc.), see `@/services/_SERVICE_RULES.md`.
 
 ## 1. Type Imports (Critical Rule)
 
-### **ALWAYS import types from `@/src/types/supabase.ts`**
+### **ALWAYS import types from `@/types/supabase.ts`**
 - **Rule**: Use auto-generated Supabase types to catch errors when database updates
 - **Rule**: Use helper types for readability: `Tables<"table_name">`, `TablesInsert<"table_name">`, `TablesUpdate<"table_name">`, `Enums<"enum_name">`
 - **Rule**: Import `Enums` when using database enum types in function parameters or extended types
@@ -20,9 +20,9 @@
 
 ```typescript
 // GOOD: Import and use generated types
-import { Database } from "@/src/types/supabase"
+import { Database } from "@/types/supabase"
 // OR use helper types (preferred)
-import { Tables, TablesInsert, TablesUpdate, Enums } from "@/src/types/supabase"
+import { Tables, TablesInsert, TablesUpdate, Enums } from "@/types/supabase"
 
 // Use for:
 // - Tables<"table_name"> for Row types
@@ -311,7 +311,7 @@ export async function createAgent(options: {
 
 ```typescript
 // GOOD: Agent client for webhook operations
-import { createClientWithAgentJWT } from "@/src/lib/supabase/server"
+import { createClientWithAgentJWT } from "@/lib/supabase/server"
 
 export async function processAgentTask(agentId: string, taskId: string) {
   // Get agent's cached JWT
@@ -614,6 +614,6 @@ await supabase
 - **Task Timestamps**: Set `started_at`/`completed_at` when status changes (application-level)
 
 **Related Documentation**:
-- `@/src/services/_SERVICE_RULES.md` - Universal service layer rules (imports, error handling, naming, etc.)
+- `@/services/_SERVICE_RULES.md` - Universal service layer rules (imports, error handling, naming, etc.)
 
 **Core Principle**: Supabase services are the database access layer. Keep them pure, type-safe, and focused on efficient database operations. See `_SERVICE_RULES.md` for universal patterns that apply to all services.

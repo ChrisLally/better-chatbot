@@ -1,16 +1,16 @@
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { getUser } from "lib/user/server";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const user = await getSupabaseUser();
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const user = await getUser(session.user.id);
-    return NextResponse.json(user ?? {});
+    const userDetails = await getUser(user.id);
+    return NextResponse.json(userDetails ?? {});
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to get user details" },

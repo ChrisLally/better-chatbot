@@ -6,8 +6,8 @@ import {
 } from "lib/admin/server";
 import { getAdminUsers } from "lib/admin/server";
 import { requireAdminPermission } from "auth/permissions";
-import { getSession } from "lib/auth/server";
-import { redirect, unauthorized } from "next/navigation";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
+import { unauthorized } from "next/navigation";
 
 // Force dynamic rendering to avoid static generation issues with session
 export const dynamic = "force-dynamic";
@@ -30,10 +30,8 @@ export default async function UserListPage({ searchParams }: PageProps) {
   } catch (_error) {
     unauthorized();
   }
-  const session = await getSession();
-  if (!session) {
-    redirect("/login");
-  }
+  // Middleware already handles auth redirect
+  const user = await getSupabaseUser();
 
   const params = await searchParams;
   const page = parseInt(params.page ?? "1", 10);
@@ -55,7 +53,7 @@ export default async function UserListPage({ searchParams }: PageProps) {
   return (
     <UsersTable
       users={result.users}
-      currentUserId={session.user.id}
+      currentUserId={user!.id}
       total={result.total}
       page={page}
       limit={limit}

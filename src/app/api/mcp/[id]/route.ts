@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { removeMcpClientAction } from "@/app/api/mcp/actions";
 import { pgMcpRepository } from "lib/db/pg/repositories/mcp-repository.pg";
-import { getSession } from "auth/server";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { canManageMCPServer } from "lib/auth/permissions";
 import logger from "lib/logger";
 
@@ -12,8 +12,8 @@ export async function DELETE(
   const params = await props.params;
 
   try {
-    const session = await getSession();
-    if (!session) {
+    const user = await getSupabaseUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const mcpServer = await pgMcpRepository.selectById(params.id);
