@@ -14,7 +14,10 @@ import { UserDeleteDialog } from "./user-delete-dialog";
 import { useProfileTranslations } from "@/hooks/use-profile-translations";
 
 interface UserAccessCardProps {
-  user: BasicUserWithLastLogin;
+  user: BasicUserWithLastLogin & {
+    role?: string | null;
+    banned?: boolean | null;
+  };
   currentUserId: string;
   userAccountInfo?: {
     hasPassword: boolean;
@@ -112,7 +115,7 @@ export function UserAccessCard({
                 showClickable={view === "admin"}
                 view={view}
               />
-              {user.banned && (
+              {user.banned === true && (
                 <p className="text-xs text-muted-foreground mt-2">
                   {t("userBannedDescription")}
                 </p>

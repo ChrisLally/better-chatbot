@@ -17,7 +17,8 @@ export function AppSidebar({
 }: {
   user?: BasicUser;
 }) {
-  const userRole = user?.role;
+  // Role functionality removed for now
+  const userRole = null;
   const router = useRouter();
 
   // Handle new chat shortcut (specific to main app)

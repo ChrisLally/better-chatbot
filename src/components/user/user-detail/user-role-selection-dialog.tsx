@@ -29,12 +29,16 @@ export function UserRoleSelector({
   view,
 }: {
   children?: React.ReactNode;
-  user: Pick<BasicUserWithLastLogin, "id" | "name" | "role">;
+  user: Pick<BasicUserWithLastLogin, "id" | "name" | "role"> & {
+    role?: string | null;
+  };
   onRoleChange: (updatedUser: Pick<BasicUserWithLastLogin, "role">) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   view?: "admin" | "user";
 }) {
+  // Handle case where role field doesn't exist (removed from schema for now)
+  const currentRole = user.role || "user"; // Default to "user" if no role field
   const { t } = useProfileTranslations(view);
   const tCommon = useTranslations("Common");
   const [_, roleFormAction, isPending] = useActionState<
@@ -88,7 +92,7 @@ export function UserRoleSelector({
           <div className="my-4 space-y-3">
             <RadioGroup
               name="role"
-              defaultValue={user.role ?? undefined}
+              defaultValue={currentRole}
               onValueChange={(value) => {
                 onRoleChange({ role: value as UserRoleNames });
               }}

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PromptInput from "./prompt-input";
 import clsx from "clsx";
 import { appStore } from "@/app/store";
-import { cn, createDebounce, generateUUID, truncateString } from "lib/utils";
+import { cn, generateUUID, truncateString } from "lib/utils";
 import { ErrorMessage, PreviewMessage } from "./message";
 import { ChatGreeting } from "./chat-greeting";
 
@@ -41,7 +41,6 @@ import { Think } from "ui/think";
 import { useGenerateThreadTitle } from "@/hooks/queries/use-generate-thread-title";
 import dynamic from "next/dynamic";
 import { useMounted } from "@/hooks/use-mounted";
-import { getStorageManager } from "lib/browser-stroage";
 import { AnimatePresence, motion } from "framer-motion";
 
 type Props = {
@@ -58,11 +57,13 @@ const Particles = dynamic(() => import("ui/particles"), {
   ssr: false,
 });
 
-const debounce = createDebounce();
+// Removed: const debounce = createDebounce(); - no longer needed for simple focus/blur behavior
 
-const firstTimeStorage = getStorageManager("IS_FIRST");
-const isFirstTime = firstTimeStorage.get() ?? true;
-firstTimeStorage.set(false);
+// Always show particles (previously only shown on first-time visit)
+// Changed from: const firstTimeStorage = getStorageManager("IS_FIRST");
+// const isFirstTime = firstTimeStorage.get() ?? true;
+// firstTimeStorage.set(false);
+const showParticlesAlways = true;
 
 export default function ChatBot({ threadId, initialMessages }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,7 +97,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     threadId,
   });
 
-  const [showParticles, setShowParticles] = useState(isFirstTime);
+  const [showParticles, setShowParticles] = useState(showParticlesAlways);
 
   const onFinish = useCallback(() => {
     const messages = latestRef.current.messages;
@@ -274,7 +275,10 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
 
   const handleFocus = useCallback(() => {
     setShowParticles(false);
-    debounce(() => setShowParticles(true), 60000);
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    setShowParticles(true);
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -285,8 +289,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     const isScrollAtBottom = scrollHeight - scrollTop - clientHeight < 50;
 
     setIsAtBottom(isScrollAtBottom);
-    handleFocus();
-  }, [handleFocus]);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     containerRef.current?.scrollTo({
@@ -350,7 +353,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
 
   useEffect(() => {
     if (mounted) {
-      handleFocus();
+      // Removed: handleFocus() - particles only hide on actual focus now
     }
   }, [input]);
 
@@ -435,7 +438,8 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             setInput={setInput}
             isLoading={isLoading || isPendingToolCall}
             onStop={stop}
-            onFocus={isFirstTime ? undefined : handleFocus}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
           />
         </div>
         <DeleteThreadPopup

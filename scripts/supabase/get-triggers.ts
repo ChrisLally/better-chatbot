@@ -50,12 +50,29 @@ async function getTriggers() {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Write to JSON file
-    const outputPath = path.join(outputDir, "triggers.json");
-    fs.writeFileSync(outputPath, JSON.stringify(triggers, null, 2));
+    // Separate triggers by schema
+    const publicTriggers = triggers.filter(
+      (t: any) => t.schemaname === "public",
+    );
+    const adminTriggers = triggers.filter((t: any) =>
+      ["auth", "supabase_functions", "storage", "realtime"].includes(
+        t.schemaname,
+      ),
+    );
 
-    console.log(`✅ Triggers exported to ${outputPath}`);
-    console.log(`📊 Found ${triggers?.length || 0} triggers`);
+    // Write public triggers
+    const publicOutputPath = path.join(outputDir, "triggers.json");
+    fs.writeFileSync(publicOutputPath, JSON.stringify(publicTriggers, null, 2));
+
+    // Write admin triggers
+    const adminOutputPath = path.join(outputDir, "admin-triggers.json");
+    fs.writeFileSync(adminOutputPath, JSON.stringify(adminTriggers, null, 2));
+
+    console.log(`✅ Public triggers exported to ${publicOutputPath}`);
+    console.log(`✅ Admin triggers exported to ${adminOutputPath}`);
+    console.log(`📊 Found ${publicTriggers?.length || 0} public triggers`);
+    console.log(`📊 Found ${adminTriggers?.length || 0} admin triggers`);
+    console.log(`📊 Total: ${triggers?.length || 0} triggers`);
   } catch (error) {
     console.error("❌ Error getting triggers:", error);
     process.exit(1);

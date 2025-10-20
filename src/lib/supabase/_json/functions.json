@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "schemaname": "public",
+    "functionname": "handle_new_user",
+    "functionowner": "postgres",
+    "returntype": "trigger",
+    "arguments": "",
+    "definition": "CREATE OR REPLACE FUNCTION public.handle_new_user()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  INSERT INTO public.users (id, name, email, image, user_type, created_at, updated_at)\n  VALUES (\n    NEW.id,\n    COALESCE(\n      NEW.raw_user_meta_data->>'name',\n      NEW.raw_user_meta_data->>'full_name',\n      split_part(NEW.email, '@', 1),\n      'User' -- Fallback name\n    ),\n    NEW.email,\n    COALESCE(\n      NEW.raw_user_meta_data->>'avatar_url',\n      NEW.raw_user_meta_data->>'picture'\n    ),\n    CASE\n      WHEN NEW.raw_user_meta_data->>'user_type' = 'agent' THEN 'agent'::public.user_type_enum\n      ELSE 'human'::public.user_type_enum\n    END,\n    NOW(),\n    NOW()\n  )\n  ON CONFLICT (id)\n  DO UPDATE SET\n    name = COALESCE(\n      NEW.raw_user_meta_data->>'name',\n      NEW.raw_user_meta_data->>'full_name',\n      split_part(NEW.email, '@', 1),\n      public.users.name, -- Keep existing name if no new data\n      'User' -- Final fallback\n    ),\n    image = COALESCE(\n      NEW.raw_user_meta_data->>'avatar_url',\n      NEW.raw_user_meta_data->>'picture',\n      public.users.image\n    ),\n    user_type = CASE\n      WHEN NEW.raw_user_meta_data->>'user_type' = 'agent' THEN 'agent'::public.user_type_enum\n      ELSE COALESCE(public.users.user_type, 'human'::public.user_type_enum)\n    END,\n    updated_at = NOW();\n\n  RETURN NEW;\nEND;\n$function$\n"
+  }
+]

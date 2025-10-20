@@ -199,7 +199,7 @@ export function UserInfoCard({
               {tCommon("joined")}
             </Label>
             <p className="text-sm font-medium" data-testid="user-created-at">
-              {format(new Date(user.createdAt), "PPP")}
+              {format(new Date(user.created_at), "PPP")}
             </p>
           </div>
 
@@ -208,7 +208,7 @@ export function UserInfoCard({
               {tCommon("lastUpdated")}
             </Label>
             <p className="text-sm font-medium" data-testid="user-updated-at">
-              {format(new Date(user.updatedAt), "PPP")}
+              {format(new Date(user.updated_at), "PPP")}
             </p>
           </div>
         </div>

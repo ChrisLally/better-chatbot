@@ -32,7 +32,18 @@ export function UserStatusBadge({
   showClickable = true,
   view,
 }: {
-  user: BasicUserWithLastLogin;
+  user:
+    | BasicUserWithLastLogin
+    | {
+        id: string;
+        name: string;
+        email: string;
+        banned?: boolean | null;
+        createdAt: Date;
+        updatedAt: Date;
+        emailVerified: boolean;
+        role?: string | null;
+      };
   onStatusChange?: (user: BasicUserWithLastLogin) => void;
   currentUserId?: string;
   disabled?: boolean;
@@ -62,10 +73,13 @@ export function UserStatusBadge({
   const canModify = useMemo(() => {
     return showClickable && !disabled && currentUserId !== user.id;
   }, [showClickable, disabled, currentUserId, user.id]);
-  const willBan = !user.banned;
+
+  // Handle case where banned field doesn't exist (removed from schema for now)
+  const isBanned = user.banned === true;
+  const willBan = !isBanned;
 
   const renderBadge = () => {
-    const badgeElement = user.banned ? (
+    const badgeElement = isBanned ? (
       <Badge
         variant="destructive"
         data-testid="status-badge-banned"
@@ -97,7 +111,7 @@ export function UserStatusBadge({
         <Tooltip>
           <TooltipTrigger asChild>{badgeElement}</TooltipTrigger>
           <TooltipContent>
-            {user.banned ? t("clickToUnbanUser") : t("clickToBanUser")}
+            {isBanned ? t("clickToUnbanUser") : t("clickToBanUser")}
           </TooltipContent>
         </Tooltip>
       );
@@ -131,7 +145,7 @@ export function UserStatusBadge({
             <input
               type="hidden"
               name="banned"
-              value={user.banned ? "true" : "false"}
+              value={isBanned ? "true" : "false"}
             />
             <div className="flex justify-end gap-2">
               <AlertDialogCancel

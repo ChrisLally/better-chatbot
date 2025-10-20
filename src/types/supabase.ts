@@ -638,6 +638,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      users: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          email: string;
+          icon: Json | null;
+          id: string;
+          image: string | null;
+          instructions: Json | null;
+          name: string;
+          preferences: Json | null;
+          updated_at: string;
+          user_type: Database["public"]["Enums"]["user_type_enum"];
+          visibility: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          email: string;
+          icon?: Json | null;
+          id?: string;
+          image?: string | null;
+          instructions?: Json | null;
+          name: string;
+          preferences?: Json | null;
+          updated_at?: string;
+          user_type?: Database["public"]["Enums"]["user_type_enum"];
+          visibility?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          email?: string;
+          icon?: Json | null;
+          id?: string;
+          image?: string | null;
+          instructions?: Json | null;
+          name?: string;
+          preferences?: Json | null;
+          updated_at?: string;
+          user_type?: Database["public"]["Enums"]["user_type_enum"];
+          visibility?: string | null;
+        };
+        Relationships: [];
+      };
       verification: {
         Row: {
           created_at: string | null;
@@ -819,7 +864,7 @@ export type Database = {
       [_ in never]: never;
     };
     Enums: {
-      [_ in never]: never;
+      user_type_enum: "human" | "agent";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -949,6 +994,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_type_enum: ["human", "agent"],
+    },
   },
 } as const;

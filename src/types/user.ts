@@ -17,25 +17,20 @@ export interface User extends Omit<UserEntity, "password"> {
   lastLogin?: Date | null;
 }
 
-export type BasicUser = Omit<
-  User,
-  | "password"
-  | "preferences"
-  | "image"
-  | "role"
-  | "banned"
-  | "banReason"
-  | "banExpires"
-> & {
+export type BasicUser = {
+  id: string;
+  name: string;
+  email: string;
   image?: string | null;
-  role?: string | null;
-  banned?: boolean | null;
-  banReason?: string | null;
-  banExpires?: Date | null;
+  user_type: "human" | "agent";
+  created_at: string;
+  updated_at: string;
 };
 
 export interface BasicUserWithLastLogin extends BasicUser {
   lastLogin: Date | null;
+  role?: string | null; // Optional for backward compatibility
+  banned?: boolean | null; // Optional for backward compatibility
 }
 
 export type UserSession = {

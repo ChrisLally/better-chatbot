@@ -40,7 +40,7 @@ export default function MCPDashboard({ message, user }: MCPDashboardProps) {
   const router = useRouter();
 
   // Check if user can create MCP connections using Better Auth permissions
-  const canCreate = canCreateMCP(user?.role);
+  const canCreate = canCreateMCP(null); // Role functionality removed for now
 
   const {
     data: mcpList,

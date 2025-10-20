@@ -1,5 +1,3 @@
-import type { User } from "./user";
-
 export interface AdminUsersQuery {
   searchValue?: string;
   searchField?: "name" | "email";
@@ -13,22 +11,20 @@ export interface AdminUsersQuery {
   filterOperator?: "lt" | "eq" | "ne" | "lte" | "gt" | "gte" | "contains";
 }
 
-// Better Auth's UserWithRole type - minimal definition for list view
-export type AdminUserListItem = Omit<
-  User,
-  | "password"
-  | "preferences"
-  | "image"
-  | "role"
-  | "banned"
-  | "banReason"
-  | "banExpires"
-> & {
+// User type for admin list view (matches current Drizzle schema)
+export type AdminUserListItem = {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
   image?: string | null;
   role?: string | null;
   banned?: boolean | null;
   banReason?: string | null;
   banExpires?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLogin?: Date | null;
 };
 
 export interface AdminUsersPaginated {

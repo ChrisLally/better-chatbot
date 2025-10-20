@@ -61,8 +61,8 @@ export const MCPCard = memo(function MCPCard({
   const { mutate } = useSWRConfig();
   const isOwner = userId === user?.id;
   const canChangeVisibility = useMemo(
-    () => canChangeVisibilityMCP(user?.role),
-    [user?.role],
+    () => canChangeVisibilityMCP(null), // Role functionality removed for now
+    [],
   );
 
   const isLoading = useMemo(() => {

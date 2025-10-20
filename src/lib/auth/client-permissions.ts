@@ -57,9 +57,13 @@ function hasPermission(
 
 /**
  * Check if user can create agents (client-side)
+ * In the new schema, this is determined server-side based on user_type
+ * For client-side, we assume authenticated users can create agents
  */
-export function canCreateAgent(userRoleString?: string | null): boolean {
-  return hasPermission(userRoleString, "create", "agent");
+export function canCreateAgent(_userRoleString?: string | null): boolean {
+  // Client-side check - assume authenticated users can create agents
+  // The actual authorization happens server-side based on user_type
+  return true;
 }
 
 /**

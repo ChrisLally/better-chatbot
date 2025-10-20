@@ -1,6 +1,4 @@
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
-import { UserPreferencesZodSchema } from "app-types/user";
-import { userRepository } from "lib/db/repository";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -10,8 +8,9 @@ export async function GET() {
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const preferences = await userRepository.getPreferences(user.id);
-    return NextResponse.json(preferences ?? {});
+
+    // User preferences functionality removed for now
+    return NextResponse.json({});
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to get preferences" },
@@ -20,21 +19,17 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(_request: Request) {
   try {
     const user = await getSupabaseUser();
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const json = await request.json();
-    const preferences = UserPreferencesZodSchema.parse(json);
-    const updatedUser = await userRepository.updatePreferences(
-      user.id,
-      preferences,
-    );
+
+    // User preferences functionality removed for now
     return NextResponse.json({
       success: true,
-      preferences: updatedUser.preferences,
+      preferences: {},
     });
   } catch (error: any) {
     return NextResponse.json(

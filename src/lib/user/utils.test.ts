@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { USER_ROLES } from "app-types/roles";
 import { getUserAvatar, getIsUserAdmin } from "./utils";
 
 describe("User Utils", () => {
@@ -30,36 +29,15 @@ describe("User Utils", () => {
     });
   });
 
-  describe("getIsUserAdmin - Role Parsing Logic", () => {
-    it("should detect admin role in single role", () => {
-      expect(getIsUserAdmin({ role: USER_ROLES.ADMIN })).toBe(true);
-      expect(getIsUserAdmin({ role: USER_ROLES.USER })).toBe(false);
-      expect(getIsUserAdmin({ role: USER_ROLES.EDITOR })).toBe(false);
-    });
-
-    it("should detect admin role in comma-separated roles", () => {
-      expect(
-        getIsUserAdmin({ role: `${USER_ROLES.USER},${USER_ROLES.ADMIN}` }),
-      ).toBe(true);
-      expect(
-        getIsUserAdmin({ role: `${USER_ROLES.ADMIN},${USER_ROLES.EDITOR}` }),
-      ).toBe(true);
-      expect(
-        getIsUserAdmin({ role: `${USER_ROLES.USER},${USER_ROLES.EDITOR}` }),
-      ).toBe(false);
-    });
-
-    it("should handle edge cases gracefully", () => {
+  describe("getIsUserAdmin - Role Functionality", () => {
+    it("should always return false since role functionality was removed", () => {
+      expect(getIsUserAdmin({ role: "admin" })).toBe(false);
+      expect(getIsUserAdmin({ role: "user" })).toBe(false);
+      expect(getIsUserAdmin({ role: "editor" })).toBe(false);
+      expect(getIsUserAdmin({ role: "ADMIN" })).toBe(false);
       expect(getIsUserAdmin({ role: null })).toBe(false);
       expect(getIsUserAdmin({})).toBe(false);
       expect(getIsUserAdmin({ role: "" })).toBe(false);
-    });
-
-    it("should require exact string match (case sensitive)", () => {
-      expect(getIsUserAdmin({ role: "ADMIN" })).toBe(false); // wrong case
-      expect(getIsUserAdmin({ role: " admin " })).toBe(false); // whitespace
-    });
-    it("should handle undefined user", () => {
       expect(getIsUserAdmin(undefined)).toBe(false);
     });
   });

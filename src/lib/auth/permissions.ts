@@ -195,13 +195,25 @@ function hasPermission(
 
 /**
  * Check if user can create agents
+ * In the new schema, only human users can create agents
  */
 export async function canCreateAgent(): Promise<boolean> {
   try {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "create", "agent");
+    // Get user details from the users table to check user_type
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+
+    const { data: userData } = await supabase
+      .from("users")
+      .select("user_type")
+      .eq("id", user.id)
+      .single();
+
+    // Only human users can create agents
+    return userData?.user_type === "human";
   } catch (error) {
     console.error("Error checking agent create permission:", error);
     return false;

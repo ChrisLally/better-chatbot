@@ -3,7 +3,7 @@
 import { BasicUserWithLastLogin, UserPreferences } from "app-types/user";
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { createClient } from "@/lib/supabase/server";
-import { userRepository } from "lib/db/repository";
+import { getUser as getUserFromService } from "@/services/supabase/users-service";
 import { notFound } from "next/navigation";
 import { customModelProvider } from "@/lib/ai/models";
 
@@ -28,7 +28,22 @@ export async function getUser(
   userId?: string,
 ): Promise<BasicUserWithLastLogin | null> {
   const resolvedUserId = await getUserIdAndCheckAccess(userId);
-  return await userRepository.getUserById(resolvedUserId);
+  const user = await getUserFromService(resolvedUserId);
+  if (!user) return null;
+
+  // Convert User type to BasicUserWithLastLogin type
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    image: user.image,
+    user_type: user.user_type,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
+    lastLogin: null, // Not available in users table yet
+    role: null, // Not available in users table yet
+    banned: null, // Not available in users table yet
+  };
 }
 
 /**
@@ -127,16 +142,28 @@ export async function getUserStats(userId?: string): Promise<{
   totalTokens: number;
   period: string;
 }> {
-  const resolvedUserId = await getUserIdAndCheckAccess(userId);
-  const stats = await userRepository.getUserStats(resolvedUserId);
+  await getUserIdAndCheckAccess(userId);
+  // User stats functionality removed for now - return empty stats
+  const stats = {
+    threadCount: 0,
+    messageCount: 0,
+    modelStats: [],
+    totalTokens: 0,
+    period: "30d",
+  };
 
   // Add provider information to each model stat
   return {
     ...stats,
-    modelStats: stats.modelStats.map((stat) => ({
+    modelStats: stats.modelStats.map((stat: any) => ({
       ...stat,
       provider: getModelProvider(stat.model),
-    })),
+    })) as Array<{
+      model: string;
+      messageCount: number;
+      totalTokens: number;
+      provider: string;
+    }>,
   };
 }
 
@@ -146,26 +173,21 @@ export async function getUserStats(userId?: string): Promise<{
  * We can get preferences for any user as an admin user
  */
 export async function getUserPreferences(
-  userId?: string,
+  _userId?: string,
 ): Promise<UserPreferences | null> {
-  const resolvedUserId = await getUserIdAndCheckAccess(userId);
-  return await userRepository.getPreferences(resolvedUserId);
+  // User preferences functionality removed for now - return null
+  return null;
 }
 
 export async function updateUserDetails(
-  userId: string,
-  name?: string,
-  email?: string,
-  image?: string,
+  _userId: string,
+  _name?: string,
+  _email?: string,
+  _image?: string,
 ) {
-  const resolvedUserId = await getUserIdAndCheckAccess(userId);
-  if (!name && !email && !image) {
-    return;
-  }
-  return await userRepository.updateUserDetails({
-    userId: resolvedUserId,
-    ...(name && { name }),
-    ...(email && { email }),
-    ...(image && { image }),
-  });
+  // User details update functionality removed for now
+  console.warn(
+    "User details update functionality not supported in current schema",
+  );
+  return null;
 }

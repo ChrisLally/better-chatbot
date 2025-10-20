@@ -69,6 +69,7 @@ interface PromptInputProps {
   threadId?: string;
   disabledMention?: boolean;
   onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 const ChatMentionInput = dynamic(() => import("./chat-mention-input"), {
@@ -85,6 +86,7 @@ export default function PromptInput({
   setModel,
   input,
   onFocus,
+  onBlur,
   setInput,
   onStop,
   isLoading,
@@ -545,6 +547,7 @@ export default function PromptInput({
                   ref={editorRef}
                   disabledMention={disabledMention}
                   onFocus={onFocus}
+                  onBlur={onBlur}
                 />
               </div>
               <div className="flex w-full items-center z-30">

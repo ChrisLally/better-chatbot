@@ -16,7 +16,10 @@ export function UserRoleBadges({
   disabled = false,
   view,
 }: {
-  user: Pick<BasicUserWithLastLogin, "role" | "banned">;
+  user: Pick<BasicUserWithLastLogin, "role" | "banned"> & {
+    role?: string | null;
+    banned?: boolean | null;
+  };
   showBanned?: boolean;
   className?: string;
   view?: "admin" | "user";
@@ -25,43 +28,49 @@ export function UserRoleBadges({
   disabled?: boolean;
 }) {
   const { t, tCommon } = useProfileTranslations(view);
+
+  // Handle case where role field doesn't exist (removed from schema for now)
+  const userRoles = user.role?.split(",") || [];
+
   return (
     <div
       className={cn("mt-3 flex flex-wrap items-center gap-2", className)}
       data-testid="user-role-badges"
     >
-      {user.role?.split(",").map((role) => {
-        const isClickable = onRoleClick && !disabled;
-        const badgeContent = (
-          <Badge
-            key={role}
-            variant="secondary"
-            className={cn(
-              "text-xs",
-              isClickable &&
-                "cursor-pointer hover:bg-secondary/80 transition-colors",
-              isClickable && "flex items-center gap-1",
-            )}
-            data-testid={`role-badge-${role.toLowerCase()}`}
-            onClick={isClickable ? onRoleClick : undefined}
-          >
-            {userRolesInfo[role as UserRoleNames]?.label || role}
-            {isClickable && <Edit2 className="size-2.5!" />}
-          </Badge>
-        );
+      {userRoles.length > 0
+        ? userRoles.map((role) => {
+            const isClickable = onRoleClick && !disabled;
+            const badgeContent = (
+              <Badge
+                key={role}
+                variant="secondary"
+                className={cn(
+                  "text-xs",
+                  isClickable &&
+                    "cursor-pointer hover:bg-secondary/80 transition-colors",
+                  isClickable && "flex items-center gap-1",
+                )}
+                data-testid={`role-badge-${role.toLowerCase()}`}
+                onClick={isClickable ? onRoleClick : undefined}
+              >
+                {userRolesInfo[role as UserRoleNames]?.label || role}
+                {isClickable && <Edit2 className="size-2.5!" />}
+              </Badge>
+            );
 
-        if (isClickable) {
-          return (
-            <Tooltip key={role}>
-              <TooltipTrigger asChild>{badgeContent}</TooltipTrigger>
-              <TooltipContent>{t("clickToChangeUserRole")}</TooltipContent>
-            </Tooltip>
-          );
-        }
+            if (isClickable) {
+              return (
+                <Tooltip key={role}>
+                  <TooltipTrigger asChild>{badgeContent}</TooltipTrigger>
+                  <TooltipContent>{t("clickToChangeUserRole")}</TooltipContent>
+                </Tooltip>
+              );
+            }
 
-        return badgeContent;
-      })}
-      {showBanned && user.banned && (
+            return badgeContent;
+          })
+        : null}
+      {showBanned && user.banned === true && (
         <Badge
           variant="destructive"
           data-testid="user-banned-badge"
