@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { mutate } from "swr";
 import { useTranslations } from "next-intl";
 import { PencilIcon, Trash2Icon } from "lucide-react";
+import { deleteWorkflowAction } from "@/app/actions/workflow-actions";
 
 interface WorkflowContextMenuProps {
   children: React.ReactNode;
@@ -29,13 +30,9 @@ export function WorkflowContextMenu(props: WorkflowContextMenuProps) {
   const t = useTranslations();
   const handleDeleteWorkflow = async () => {
     toast.promise(
-      safe(() =>
-        fetch(`/api/workflow/${props.workflow.id}`, {
-          method: "DELETE",
-        }),
-      )
+      safe(() => deleteWorkflowAction(props.workflow.id))
         .ifOk(() => {
-          mutate("/api/workflow");
+          mutate("workflows");
           setOpen(false);
         })
         .unwrap(),

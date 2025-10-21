@@ -37,6 +37,7 @@ import { cn, createDebounce } from "lib/utils";
 import { mutate } from "swr";
 import { useTranslations } from "next-intl";
 import { BACKGROUND_COLORS } from "lib/const";
+import { createWorkflowAction } from "@/app/actions/workflow-actions";
 
 const colorUpdateDebounce = createDebounce();
 
@@ -61,6 +62,8 @@ const zodSchema = z.object({
     .min(1)
     .regex(/^[a-zA-Z -]+$/),
   description: z.string().max(200).optional(),
+  visibility: z.enum(["public", "private", "readonly"]).default("private"),
+  isPublished: z.boolean().default(false),
   icon: z.object({
     type: z.enum(["emoji"]),
     value: z.string().min(1),
@@ -114,16 +117,11 @@ export function EditWorkflowPopup({
     toast.promise(
       safe(() => zodSchema.parse(config))
         .map(async (body) => {
-          const response = await fetch("/api/workflow", {
-            method: "POST",
-            body: JSON.stringify(body),
-          });
-          const data = await response.json();
-          return data as DBWorkflow;
+          return await createWorkflowAction(body);
         })
         .ifOk((workflow) => {
           onOpenChange?.(false);
-          mutate("/api/workflow");
+          mutate("workflows");
           if (submitAfterRoute) {
             router.push(`/workflow/${workflow.id}`);
           }

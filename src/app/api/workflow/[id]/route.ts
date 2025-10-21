@@ -1,6 +1,11 @@
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
-import { workflowRepository } from "lib/db/repository";
-import { canEditWorkflow, canDeleteWorkflow } from "lib/auth/permissions";
+import {
+  checkWorkflowAccess,
+  getWorkflow,
+  updateWorkflow,
+  deleteWorkflow,
+} from "@/services/supabase/workflow-service";
+import { canEditWorkflow, canDeleteWorkflow } from "@/lib/auth/permissions";
 
 export async function GET(
   _: Request,
@@ -11,11 +16,11 @@ export async function GET(
   if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const hasAccess = await workflowRepository.checkAccess(id, user.id);
+  const hasAccess = await checkWorkflowAccess(id, user.id);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const workflow = await workflowRepository.selectById(id);
+  const workflow = await getWorkflow(id);
   return Response.json(workflow);
 }
 
@@ -39,23 +44,21 @@ export async function PUT(
       { status: 403 },
     );
   }
-  const hasAccess = await workflowRepository.checkAccess(id, user.id, false);
+  const hasAccess = await checkWorkflowAccess(id, user.id, false);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   // Get existing workflow
-  const existingWorkflow = await workflowRepository.selectById(id);
+  const existingWorkflow = await getWorkflow(id);
   if (!existingWorkflow) {
     return new Response("Workflow not found", { status: 404 });
   }
 
   // Update only the specified fields
-  const updatedWorkflow = await workflowRepository.save({
-    ...existingWorkflow,
+  const updatedWorkflow = await updateWorkflow(id, {
     visibility: visibility ?? existingWorkflow.visibility,
     isPublished: isPublished ?? existingWorkflow.isPublished,
-    updatedAt: new Date(),
   });
 
   return Response.json(updatedWorkflow);
@@ -79,10 +82,10 @@ export async function DELETE(
       { status: 403 },
     );
   }
-  const hasAccess = await workflowRepository.checkAccess(id, user.id, false);
+  const hasAccess = await checkWorkflowAccess(id, user.id, false);
   if (!hasAccess) {
     return new Response("Unauthorized", { status: 401 });
   }
-  await workflowRepository.delete(id);
+  await deleteWorkflow(id);
   return Response.json({ message: "Workflow deleted" });
 }

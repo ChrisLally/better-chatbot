@@ -62,10 +62,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "account_user_id_user_id_fk";
+            foreignKeyName: "account_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -106,10 +106,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "agent_user_id_user_id_fk";
+            foreignKeyName: "agent_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -141,10 +141,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "archive_user_id_user_id_fk";
+            foreignKeyName: "archive_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -180,10 +180,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "archive_item_user_id_user_id_fk";
+            foreignKeyName: "archive_item_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -212,10 +212,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "bookmark_user_id_user_id_fk";
+            foreignKeyName: "bookmark_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -250,10 +250,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "chat_export_exporter_id_user_id_fk";
+            foreignKeyName: "chat_export_exporter_id_users_id_fk";
             columns: ["exporter_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -288,10 +288,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "chat_export_comment_author_id_user_id_fk";
+            foreignKeyName: "chat_export_comment_author_id_users_id_fk";
             columns: ["author_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
           {
@@ -366,10 +366,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "chat_thread_user_id_user_id_fk";
+            foreignKeyName: "chat_thread_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -451,10 +451,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "mcp_server_user_id_user_id_fk";
+            foreignKeyName: "mcp_server_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -493,10 +493,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "mcp_server_custom_instructions_user_id_user_id_fk";
+            foreignKeyName: "mcp_server_custom_instructions_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -538,10 +538,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "mcp_server_tool_custom_instructions_user_id_user_id_fk";
+            foreignKeyName: "mcp_server_tool_custom_instructions_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -582,61 +582,13 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "session_user_id_user_id_fk";
+            foreignKeyName: "session_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
-      };
-      user: {
-        Row: {
-          ban_expires: string | null;
-          ban_reason: string | null;
-          banned: boolean | null;
-          created_at: string;
-          email: string;
-          email_verified: boolean;
-          id: string;
-          image: string | null;
-          name: string;
-          password: string | null;
-          preferences: Json | null;
-          role: string;
-          updated_at: string;
-        };
-        Insert: {
-          ban_expires?: string | null;
-          ban_reason?: string | null;
-          banned?: boolean | null;
-          created_at?: string;
-          email: string;
-          email_verified?: boolean;
-          id?: string;
-          image?: string | null;
-          name: string;
-          password?: string | null;
-          preferences?: Json | null;
-          role?: string;
-          updated_at?: string;
-        };
-        Update: {
-          ban_expires?: string | null;
-          ban_reason?: string | null;
-          banned?: boolean | null;
-          created_at?: string;
-          email?: string;
-          email_verified?: boolean;
-          id?: string;
-          image?: string | null;
-          name?: string;
-          password?: string | null;
-          preferences?: Json | null;
-          role?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
       };
       users: {
         Row: {
@@ -749,10 +701,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "workflow_user_id_user_id_fk";
+            foreignKeyName: "workflow_user_id_users_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
-            referencedRelation: "user";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];

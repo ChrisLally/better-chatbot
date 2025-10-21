@@ -7,7 +7,7 @@ import {
   generateText,
 } from "ai";
 import { generateImageWithNanoBanana } from "lib/ai/image/generate-image";
-import { serverFileStorage } from "lib/file-storage";
+import { uploadFileFromBuffer } from "@/services/supabase/storage-service";
 import { safe, watchError } from "ts-safe";
 import z from "zod";
 import { ImageToolName } from "..";
@@ -71,15 +71,14 @@ export const nanoBananaTool = createTool({
         .map((images) => {
           return Promise.all(
             images.map(async (image) => {
-              const uploadedImage = await serverFileStorage.upload(
+              const uploadedImage = await uploadFileFromBuffer(
                 Buffer.from(image.base64, "base64"),
-                {
-                  contentType: image.mimeType,
-                },
+                "generated",
+                image.mimeType || "image/png",
               );
               return {
-                url: uploadedImage.sourceUrl,
-                mimeType: image.mimeType,
+                url: uploadedImage.url,
+                mimeType: image.mimeType || "image/png",
               };
             }),
           );
@@ -167,17 +166,17 @@ export const openaiImageTool = createTool({
     for (const toolResult of result.staticToolResults) {
       if (toolResult.toolName === "image_generation") {
         const base64Image = toolResult.output.result;
-        const uploadedImage = await serverFileStorage
-          .upload(Buffer.from(base64Image, "base64"), {
-            contentType: "image/webp",
-          })
-          .catch(() => {
-            throw new Error(
-              "Image generation was successful, but file upload failed. Please check your file upload configuration and try again.",
-            );
-          });
+        const uploadedImage = await uploadFileFromBuffer(
+          Buffer.from(base64Image, "base64"),
+          "generated",
+          "image/webp",
+        ).catch(() => {
+          throw new Error(
+            "Image generation was successful, but file upload failed. Please check your file upload configuration and try again.",
+          );
+        });
         return {
-          images: [{ url: uploadedImage.sourceUrl, mimeType: "image/webp" }],
+          images: [{ url: uploadedImage.url, mimeType: "image/webp" }],
           mode,
           model: "gpt-image-1-mini",
           guide:

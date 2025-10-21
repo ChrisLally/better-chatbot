@@ -123,7 +123,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
         generateTitle(part.join("\n\n"));
       }
     } else if (latestRef.current.threadList[0]?.id !== threadId) {
-      mutate("/api/thread");
+      mutate("chat-threads");
     }
   }, []);
 

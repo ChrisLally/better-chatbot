@@ -16,12 +16,21 @@ import {
 import type { ChatModel, ChatThread } from "app-types/chat";
 
 import {
-  agentRepository,
   chatExportRepository,
-  chatRepository,
   mcpMcpToolCustomizationRepository,
   mcpServerCustomizationRepository,
 } from "lib/db/repository";
+import {
+  getThread,
+  getMessages,
+  deleteMessage,
+  deleteThread,
+  deleteMessagesAfterMessage,
+  updateThread,
+  deleteAllThreads,
+  checkThreadAccess,
+} from "@/services/supabase/chat-service";
+import { getAgent } from "@/services/supabase/users-service";
 import { customModelProvider } from "lib/ai/models";
 import { toAny } from "lib/utils";
 import { McpServerCustomizationsPrompt, MCPToolInfo } from "app-types/mcp";
@@ -68,7 +77,7 @@ export async function selectThreadWithMessagesAction(threadId: string) {
   if (!user) {
     throw new Error("Unauthorized");
   }
-  const thread = await chatRepository.selectThread(threadId);
+  const thread = await getThread(threadId);
 
   if (!thread) {
     logger.error("Thread not found", threadId);
@@ -77,41 +86,52 @@ export async function selectThreadWithMessagesAction(threadId: string) {
   if (thread.userId !== user.id) {
     return null;
   }
-  const messages = await chatRepository.selectMessagesByThreadId(threadId);
+  const messages = await getMessages(threadId);
   return { ...thread, messages: messages ?? [] };
 }
 
 export async function deleteMessageAction(messageId: string) {
-  await chatRepository.deleteChatMessage(messageId);
+  await deleteMessage(messageId);
 }
 
 export async function deleteThreadAction(threadId: string) {
-  await chatRepository.deleteThread(threadId);
+  await deleteThread(threadId);
 }
 
 export async function deleteMessagesByChatIdAfterTimestampAction(
   messageId: string,
 ) {
   "use server";
-  await chatRepository.deleteMessagesByChatIdAfterTimestamp(messageId);
+  await deleteMessagesAfterMessage(messageId);
 }
 
 export async function updateThreadAction(
   id: string,
   thread: Partial<Omit<ChatThread, "createdAt" | "updatedAt" | "userId">>,
 ) {
-  const userId = await getUserId();
-  await chatRepository.updateThread(id, { ...thread, userId });
+  const _userId = await getUserId();
+  await updateThread(id, thread);
 }
 
 export async function deleteThreadsAction() {
-  const userId = await getUserId();
-  await chatRepository.deleteAllThreads(userId);
+  await deleteAllThreads();
 }
 
 export async function deleteUnarchivedThreadsAction() {
+  // TODO: Implement deleteUnarchivedThreads in chat-service
   const userId = await getUserId();
-  await chatRepository.deleteUnarchivedThreads(userId);
+  const { archiveRepository } = await import("lib/db/repository");
+  const archivedItems = await archiveRepository.getArchiveItemsByUserId(userId);
+  const archivedThreadIds = archivedItems.map((item) => item.itemId);
+
+  const { getThreads } = await import("@/services/supabase/chat-service");
+  const allThreads = await getThreads();
+
+  for (const thread of allThreads) {
+    if (!archivedThreadIds.includes(thread.id)) {
+      await deleteThread(thread.id);
+    }
+  }
 }
 
 export async function generateExampleToolSchemaAction(options: {
@@ -214,13 +234,13 @@ export async function generateObjectAction({
 
 export async function rememberAgentAction(
   agent: string | undefined,
-  userId: string,
+  _userId: string,
 ) {
   if (!agent) return undefined;
   const key = CacheKeys.agentInstructions(agent);
   let cachedAgent = await serverCache.get<Agent | null>(key);
   if (!cachedAgent) {
-    cachedAgent = await agentRepository.selectAgentById(agent, userId);
+    cachedAgent = await getAgent(agent);
     await serverCache.set(key, cachedAgent);
   }
   return cachedAgent as Agent | undefined;
@@ -235,7 +255,7 @@ export async function exportChatAction({
 }) {
   const userId = await getUserId();
 
-  const isAccess = await chatRepository.checkAccess(threadId, userId);
+  const isAccess = await checkThreadAccess(threadId);
   if (!isAccess) {
     return new Response("Unauthorized", { status: 401 });
   }

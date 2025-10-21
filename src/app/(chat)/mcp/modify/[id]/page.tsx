@@ -3,7 +3,7 @@ import { Alert } from "ui/alert";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { mcpRepository } from "lib/db/repository";
+import { getMcpServerById } from "@/services/supabase/mcp-service";
 import { redirect } from "next/navigation";
 
 export default async function Page({
@@ -11,11 +11,23 @@ export default async function Page({
 }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await getTranslations();
-  const mcpClient = await mcpRepository.selectById(id);
+  const mcpServer = await getMcpServerById(id);
 
-  if (!mcpClient) {
+  if (!mcpServer) {
     return redirect("/mcp");
   }
+
+  // Convert from Supabase format to expected format
+  const mcpClient = {
+    id: mcpServer.id,
+    name: mcpServer.name,
+    config: mcpServer.config as any,
+    enabled: mcpServer.enabled,
+    userId: mcpServer.user_id,
+    visibility: mcpServer.visibility as "public" | "private",
+    createdAt: new Date(mcpServer.created_at),
+    updatedAt: new Date(mcpServer.updated_at),
+  };
 
   return (
     <div className="container max-w-3xl mx-4 md:mx-auto py-8">

@@ -2,8 +2,13 @@
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 import { z } from "zod";
 
-import { McpServerTable } from "lib/db/pg/schema.pg";
-import { mcpOAuthRepository, mcpRepository } from "lib/db/repository";
+import {
+  getMcpServersForUser,
+  getMcpServerById,
+  mcpServerExistsByName,
+  updateMcpServerVisibility,
+  getAuthenticatedMcpOAuthSession,
+} from "@/services/supabase/mcp-service";
 import {
   canCreateMCP,
   canManageMCPServer,
@@ -19,9 +24,7 @@ export async function selectMcpClientsAction() {
   }
 
   // Get all MCP servers the user can access (their own + shared)
-  const accessibleServers = await mcpRepository.selectAllForUser(
-    currentUser.id,
-  );
+  const accessibleServers = await getMcpServersForUser(currentUser.id);
   const accessibleIds = new Set(accessibleServers.map((s) => s.id));
 
   // Get all active clients and filter to only accessible ones
@@ -33,11 +36,11 @@ export async function selectMcpClientsAction() {
       return {
         ...client.getInfo(),
         id,
-        userId: server?.userId,
+        userId: server?.user_id,
         visibility: server?.visibility,
-        isOwner: server?.userId === currentUser.id,
+        isOwner: server?.user_id === currentUser.id,
         canManage: server
-          ? server.userId === currentUser.id || currentUser.role === "admin"
+          ? server.user_id === currentUser.id || currentUser.role === "admin"
           : false,
       };
     });
@@ -54,9 +57,12 @@ export async function selectMcpClientAction(id: string) {
   };
 }
 
-export async function saveMcpClientAction(
-  server: typeof McpServerTable.$inferInsert,
-) {
+export async function saveMcpClientAction(server: {
+  id?: string;
+  name: string;
+  config: any;
+  visibility?: string;
+}) {
   if (process.env.NOT_ALLOW_ADD_MCP_SERVERS) {
     throw new Error("Not allowed to add MCP servers");
   }
@@ -94,7 +100,7 @@ export async function saveMcpClientAction(
     }
 
     // Check if a featured server with this name already exists
-    const existing = await mcpRepository.existsByServerName(server.name);
+    const existing = await mcpServerExistsByName(server.name);
     if (existing && !server.id) {
       throw new Error("A featured MCP server with this name already exists");
     }
@@ -102,28 +108,31 @@ export async function saveMcpClientAction(
 
   // Add userId to the server object
   const serverWithUser = {
-    ...server,
+    id: server.id,
+    name: server.name,
+    config: server.config,
     userId: currentUser.id,
-    visibility: server.visibility || "private",
+    visibility:
+      (server.visibility as "public" | "private" | undefined) || "private",
   };
 
   return mcpClientsManager.persistClient(serverWithUser);
 }
 
 export async function existMcpClientByServerNameAction(serverName: string) {
-  return await mcpRepository.existsByServerName(serverName);
+  return await mcpServerExistsByName(serverName);
 }
 
 export async function removeMcpClientAction(id: string) {
   // Get the MCP server to check ownership
-  const mcpServer = await mcpRepository.selectById(id);
+  const mcpServer = await getMcpServerById(id);
   if (!mcpServer) {
     throw new Error("MCP server not found");
   }
 
   // Check if user has permission to delete this specific MCP server
   const canManage = await canManageMCPServer(
-    mcpServer.userId,
+    mcpServer.user_id,
     mcpServer.visibility,
   );
   if (!canManage) {
@@ -147,7 +156,7 @@ export async function authorizeMcpClientAction(id: string) {
 }
 
 export async function checkTokenMcpClientAction(id: string) {
-  const session = await mcpOAuthRepository.getAuthenticatedSession(id);
+  const session = await getAuthenticatedMcpOAuthSession(id);
 
   // for wait connect to mcp server
   await mcpClientsManager.getClient(id).catch(() => null);
@@ -182,7 +191,7 @@ export async function shareMcpServerAction(
   }
 
   // Update the visibility of the MCP server
-  await mcpRepository.updateVisibility(id, visibility);
+  await updateMcpServerVisibility(id, visibility);
 
   return { success: true };
 }

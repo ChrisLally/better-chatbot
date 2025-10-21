@@ -5,6 +5,30 @@ import type { BetterAuthRole } from "./types";
 import { parseRoleString, isBetterAuthRole } from "./types";
 
 /**
+ * Get user's application role from the users table
+ */
+async function getUserRole(): Promise<string | null> {
+  try {
+    const user = await getSupabaseUser();
+    if (!user) return null;
+
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+
+    const { data: userData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    return userData?.role || "user";
+  } catch (error) {
+    console.error("Error getting user role:", error);
+    return "user";
+  }
+}
+
+/**
  * Simple permission helpers that wrap Better Auth's role system
  *
  * Philosophy:
@@ -228,7 +252,8 @@ export async function canEditAgent(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "update", "agent");
+    const role = await getUserRole();
+    return hasPermission(role, "update", "agent");
   } catch (error) {
     console.error("Error checking agent edit permission:", error);
     return false;
@@ -243,7 +268,8 @@ export async function canDeleteAgent(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "delete", "agent");
+    const role = await getUserRole();
+    return hasPermission(role, "delete", "agent");
   } catch (error) {
     console.error("Error checking agent delete permission:", error);
     return false;
@@ -258,7 +284,8 @@ export async function canCreateWorkflow(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "create", "workflow");
+    const role = await getUserRole();
+    return hasPermission(role, "create", "workflow");
   } catch (error) {
     console.error("Error checking workflow create permission:", error);
     return false;
@@ -273,7 +300,8 @@ export async function canEditWorkflow(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "update", "workflow");
+    const role = await getUserRole();
+    return hasPermission(role, "update", "workflow");
   } catch (error) {
     console.error("Error checking workflow edit permission:", error);
     return false;
@@ -288,7 +316,8 @@ export async function canDeleteWorkflow(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "delete", "workflow");
+    const role = await getUserRole();
+    return hasPermission(role, "delete", "workflow");
   } catch (error) {
     console.error("Error checking workflow delete permission:", error);
     return false;
@@ -303,7 +332,8 @@ export async function canCreateMCP(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "create", "mcp");
+    const role = await getUserRole();
+    return hasPermission(role, "create", "mcp");
   } catch (error) {
     console.error("Error checking MCP create permission:", error);
     return false;
@@ -318,7 +348,8 @@ export async function canEditMCP(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "update", "mcp");
+    const role = await getUserRole();
+    return hasPermission(role, "update", "mcp");
   } catch (error) {
     console.error("Error checking MCP edit permission:", error);
     return false;
@@ -333,7 +364,8 @@ export async function canChangeVisibilityMCP(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "share", "mcp");
+    const role = await getUserRole();
+    return hasPermission(role, "share", "mcp");
   } catch (error) {
     console.error("Error checking MCP visibility change permission:", error);
     return false;
@@ -348,7 +380,8 @@ export async function canDeleteMCP(): Promise<boolean> {
     const user = await getSupabaseUser();
     if (!user) return false;
 
-    return hasPermission(user.role, "delete", "mcp");
+    const role = await getUserRole();
+    return hasPermission(role, "delete", "mcp");
   } catch (error) {
     console.error("Error checking MCP delete permission:", error);
     return false;

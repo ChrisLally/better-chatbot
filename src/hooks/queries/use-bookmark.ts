@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSWRConfig } from "swr";
+import { toggleBookmarkAction } from "@/app/actions/bookmark-actions";
 
 export interface BookmarkItem {
   id: string;
@@ -25,27 +26,26 @@ export function useBookmark(options: UseBookmarkOptions = {}) {
     setLoadingIds((prev) => new Set(prev).add(id));
 
     try {
-      // Make the API call to the generic bookmark endpoint
-      const response = await fetch(`/api/bookmark`, {
-        method: isBookmarked ? "DELETE" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          itemId: id,
-          itemType,
-        }),
+      // Use server action instead of direct API call
+      const result = await toggleBookmarkAction({
+        itemId: id,
+        itemType,
+        isCurrentlyBookmarked: isBookmarked,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to update bookmark");
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update bookmark");
       }
 
       // Update all list caches with optimistic data
       await mutate(
         (key) => {
           if (typeof key !== "string") return false;
-          // Update list endpoints but not individual item details
+          // Update agent list cache keys (agents-{filters}-{limit}) but not individual items
+          if (itemType === "agent") {
+            return key.startsWith("agents-");
+          }
+          // For other item types, keep the original pattern
           return (
             key.startsWith(`/api/${itemType}`) &&
             !key.match(new RegExp(`/api/${itemType}/[^/?]+$`))
@@ -54,16 +54,18 @@ export function useBookmark(options: UseBookmarkOptions = {}) {
         (cachedData: any) => {
           if (!cachedData) return cachedData;
 
-          // Handle arrays of items (like /api/agent?filters=...)
+          // Handle arrays of items (like agents-{filters}-{limit})
           if (Array.isArray(cachedData)) {
             return cachedData.map((item: any) =>
-              item.id === id ? { ...item, isBookmarked: !isBookmarked } : item,
+              item.id === id
+                ? { ...item, isBookmarked: result.isBookmarked }
+                : item,
             );
           }
 
           // Handle single item objects (like some search endpoints)
           if (cachedData.id === id) {
-            return { ...cachedData, isBookmarked: !isBookmarked };
+            return { ...cachedData, isBookmarked: result.isBookmarked };
           }
 
           return cachedData;
@@ -73,15 +75,15 @@ export function useBookmark(options: UseBookmarkOptions = {}) {
 
       // Also update individual item cache
       await mutate(
-        `/api/${itemType}/${id}`,
+        itemType === "agent" ? `agent-${id}` : `/api/${itemType}/${id}`,
         (cachedData: any) => {
           if (!cachedData) return cachedData;
-          return { ...cachedData, isBookmarked: !isBookmarked };
+          return { ...cachedData, isBookmarked: result.isBookmarked };
         },
         { revalidate: true },
       );
 
-      return !isBookmarked; // Return new bookmark state
+      return result.isBookmarked; // Return new bookmark state
     } catch (error) {
       console.error("Error toggling bookmark:", error);
       throw error;

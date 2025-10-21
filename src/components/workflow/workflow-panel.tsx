@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { arrangeNodes } from "lib/ai/workflow/arrange-nodes";
 import { EditWorkflowPopup } from "./edit-workflow-popup";
+import { updateWorkflowAction } from "@/app/actions/workflow-actions";
 
 export const WorkflowPanel = memo(
   function WorkflowPanel({
@@ -65,17 +66,11 @@ export const WorkflowPanel = memo(
         setIsSaving(true);
         const close = addProcess();
         safe(() =>
-          fetch(`/api/workflow/${workflow.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              visibility,
-            }),
-          }).then((res) => {
-            if (res.status != 200) throw new Error(res.statusText);
+          updateWorkflowAction(workflow.id, {
+            visibility: visibility as "public" | "private" | "readonly",
           }),
         )
-          .ifOk(() => mutate(`/api/workflow/${workflow.id}`))
+          .ifOk(() => mutate(`workflow-${workflow.id}`))
           .ifFail((e) => handleErrorWithToast(e))
           .watch(() => {
             setIsSaving(false);
@@ -112,19 +107,12 @@ export const WorkflowPanel = memo(
         }
 
         const close = addProcess();
-        safe(() => onSave())
-          .ifOk(() =>
-            fetch(`/api/workflow/${workflow.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                isPublished,
-              }),
-            }).then((res) => {
-              if (res.status != 200) throw new Error(res.statusText);
-            }),
-          )
-          .ifOk(() => mutate(`/api/workflow/${workflow.id}`))
+        safe(() =>
+          updateWorkflowAction(workflow.id, {
+            isPublished,
+          }),
+        )
+          .ifOk(() => mutate(`workflow-${workflow.id}`))
           .ifFail((e) => handleErrorWithToast(e))
           .watch(close);
       },
@@ -132,7 +120,7 @@ export const WorkflowPanel = memo(
     );
 
     const handleWorkflowMasterSave = useCallback((workflow: DBWorkflow) => {
-      mutate(`/api/workflow/${workflow.id}`);
+      mutate(`workflow-${workflow.id}`);
       setIsEditing(false);
     }, []);
 

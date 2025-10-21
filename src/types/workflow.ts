@@ -64,6 +64,65 @@ export type WorkflowSummary = {
   userAvatar?: string;
   updatedAt: Date;
 };
+
+// Input types for creating/updating workflows
+export type WorkflowCreateInput = {
+  name: string;
+  description?: string;
+  icon?: WorkflowIcon;
+  visibility?: Visibility;
+  isPublished?: boolean;
+};
+
+export type WorkflowUpdateInput = {
+  name?: string;
+  description?: string;
+  icon?: WorkflowIcon;
+  visibility?: Visibility;
+  isPublished?: boolean;
+};
+
+// Filter types for querying workflows
+export type WorkflowFilters = {
+  visibility?: Visibility[];
+  ownership?: ("mine" | "shared")[];
+  search?: string;
+  limit?: number;
+};
+
+// Workflow structure (workflow with nodes and edges)
+export type WorkflowStructure = DBWorkflow & {
+  nodes: DBNode[];
+  edges: DBEdge[];
+};
+
+// Workflow execution types
+export type WorkflowExecution = {
+  id: string;
+  workflowId: string;
+  userId: string;
+  status: "pending" | "running" | "success" | "failed";
+  input?: any;
+  output?: any;
+  error?: string;
+  startedAt: Date;
+  completedAt?: Date;
+};
+
+// Workflow tool type (for agent tool selector)
+export type WorkflowTool = {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: WorkflowIcon;
+  visibility: Visibility;
+  isPublished: boolean;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  updatedAt: Date;
+};
+
 export interface WorkflowRepository {
   delete(id: string): Promise<void>;
   selectByUserId(userId: string): Promise<DBWorkflow[]>;

@@ -15,9 +15,14 @@ import { MCPServerInfo } from "app-types/mcp";
 import { WorkflowSummary } from "app-types/workflow";
 import { DefaultToolName } from "lib/ai/tools";
 import { BACKGROUND_COLORS } from "lib/const";
-import { cn, fetcher, objectFlow } from "lib/utils";
+import { cn, objectFlow } from "lib/utils";
 import { safe } from "ts-safe";
 import { handleErrorWithToast } from "ui/shared-toast";
+import {
+  createAgentAction,
+  updateAgentAction,
+  deleteAgentAction,
+} from "@/app/actions/agent-actions";
 import { ChevronDownIcon, Loader, WandSparklesIcon } from "lucide-react";
 import { Button } from "ui/button";
 import {
@@ -157,63 +162,82 @@ export default function EditAgent({
     [mcpList, workflowToolList, setAgent],
   );
 
-  const saveAgent = useCallback(() => {
+  const saveAgent = useCallback(async () => {
     if (initialAgent) {
-      safe(() => setIsSaving(true))
-        .map(() => AgentUpdateSchema.parse({ ...agent }))
-        .map(JSON.stringify)
-        .map(async (body) =>
-          fetcher(`/api/agent/${initialAgent.id}`, {
-            method: "PUT",
-            body,
-          }),
-        )
-        .ifOk((updatedAgent) => {
-          mutateAgents(updatedAgent);
+      // Update existing agent
+      try {
+        setIsSaving(true);
+        const validatedAgent = AgentUpdateSchema.parse({ ...agent });
+
+        const result = await updateAgentAction(initialAgent.id, validatedAgent);
+
+        if (result.success) {
+          mutateAgents({ id: initialAgent.id, ...validatedAgent });
           toast.success(t("Agent.updated"));
           router.push(`/agents`);
-        })
-        .ifFail(handleErrorWithToast)
-        .watch(() => setIsSaving(false));
+        } else {
+          handleErrorWithToast(new Error(result.error));
+        }
+      } catch (error) {
+        handleErrorWithToast(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      } finally {
+        setIsSaving(false);
+      }
     } else {
-      safe(() => setIsSaving(true))
-        .map(() => AgentCreateSchema.parse({ ...agent, userId }))
-        .map(JSON.stringify)
-        .map(async (body) => {
-          return fetcher(`/api/agent`, {
-            method: "POST",
-            body,
-          });
-        })
-        .ifOk((updatedAgent) => {
-          mutateAgents(updatedAgent);
+      // Create new agent
+      try {
+        setIsSaving(true);
+        const validatedAgent = AgentCreateSchema.parse({ ...agent, userId });
+
+        const result = await createAgentAction(validatedAgent);
+
+        if (result.success && result.agentId) {
+          mutateAgents({ id: result.agentId, ...validatedAgent });
           toast.success(t("Agent.created"));
           router.push(`/agents`);
-        })
-        .ifFail(handleErrorWithToast)
-        .watch(() => setIsSaving(false));
+        } else if (!result.success) {
+          handleErrorWithToast(new Error(result.error));
+        }
+      } catch (error) {
+        handleErrorWithToast(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      } finally {
+        setIsSaving(false);
+      }
     }
   }, [agent, userId, mutateAgents, router, initialAgent, t]);
 
   const updateVisibility = useCallback(
     async (visibility: Visibility) => {
       if (initialAgent?.id) {
-        safe(() => setIsVisibilityChangeLoading(true))
-          .map(() => AgentUpdateSchema.parse({ visibility }))
-          .map(JSON.stringify)
-          .map(async (body) =>
-            fetcher(`/api/agent/${initialAgent.id}`, {
-              method: "PUT",
-              body,
-            }),
-          )
-          .ifOk(() => {
+        try {
+          setIsVisibilityChangeLoading(true);
+          const validatedUpdate = AgentUpdateSchema.parse({ visibility });
+
+          const result = await updateAgentAction(
+            initialAgent.id,
+            validatedUpdate,
+          );
+
+          if (result.success) {
             setAgent({ visibility });
             mutateAgents({ id: initialAgent.id, visibility });
             toast.success(t("Agent.visibilityUpdated"));
-          })
-          .ifFail(handleErrorWithToast)
-          .watch(() => setIsVisibilityChangeLoading(false));
+          } else {
+            handleErrorWithToast(
+              new Error(result.error || "Failed to update visibility"),
+            );
+          }
+        } catch (error) {
+          handleErrorWithToast(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        } finally {
+          setIsVisibilityChangeLoading(false);
+        }
       } else {
         setAgent({ visibility });
       }
@@ -227,19 +251,26 @@ export default function EditAgent({
       description: t("Agent.deleteConfirm"),
     });
     if (!ok) return;
-    safe(() => setIsSaving(true))
-      .map(() =>
-        fetcher(`/api/agent/${initialAgent.id}`, {
-          method: "DELETE",
-        }),
-      )
-      .ifOk(() => {
+    try {
+      setIsSaving(true);
+      const result = await deleteAgentAction(initialAgent.id);
+
+      if (result.success) {
         mutateAgents({ id: initialAgent.id }, true);
         toast.success(t("Agent.deleted"));
         router.push("/agents");
-      })
-      .ifFail(handleErrorWithToast)
-      .watch(() => setIsSaving(false));
+      } else {
+        handleErrorWithToast(
+          new Error(result.error || "Failed to delete agent"),
+        );
+      }
+    } catch (error) {
+      handleErrorWithToast(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }, [initialAgent?.id, mutateAgents, router, t]);
 
   const handleBookmarkToggle = useCallback(async () => {

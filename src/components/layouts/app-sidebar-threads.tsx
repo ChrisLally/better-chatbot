@@ -25,19 +25,17 @@ import {
   deleteThreadsAction,
   deleteUnarchivedThreadsAction,
 } from "@/app/api/chat/actions";
-import { fetcher } from "lib/utils";
 import { toast } from "sonner";
 import { useShallow } from "zustand/shallow";
 import { useRouter } from "next/navigation";
-import useSWR, { mutate } from "swr";
-import { handleErrorWithToast } from "ui/shared-toast";
+import { mutate } from "swr";
 import { useMemo, useState } from "react";
 
 import { useTranslations } from "next-intl";
 import { TextShimmer } from "ui/text-shimmer";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
-import { deduplicateByKey, groupBy } from "lib/utils";
-import { ChatThread } from "app-types/chat";
+
+import { useChatThreads } from "@/hooks/queries/use-chat-threads";
 
 type ThreadGroup = {
   label: string;
@@ -50,7 +48,7 @@ export function AppSidebarThreads() {
   const mounted = useMounted();
   const router = useRouter();
   const t = useTranslations("Layout");
-  const [storeMutate, currentThreadId, generatingTitleThreadIds] = appStore(
+  const [_storeMutate, currentThreadId, generatingTitleThreadIds] = appStore(
     useShallow((state) => [
       state.mutate,
       state.currentThreadId,
@@ -60,37 +58,7 @@ export function AppSidebarThreads() {
   // State to track if expanded view is active
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const { data: threadList, isLoading } = useSWR("/api/thread", fetcher, {
-    onError: handleErrorWithToast,
-    fallbackData: [],
-    onSuccess: (data) => {
-      storeMutate((prev) => {
-        const groupById = groupBy(prev.threadList, "id");
-
-        const generatingTitleThreads = prev.generatingTitleThreadIds
-          .map((id) => {
-            return groupById[id]?.[0];
-          })
-          .filter(Boolean) as ChatThread[];
-        const list = deduplicateByKey(
-          generatingTitleThreads.concat(data),
-          "id",
-        );
-        return {
-          threadList: list.map((v) => {
-            const target = groupById[v.id]?.[0];
-            if (!target) return v;
-            if (target.title && !v.title)
-              return {
-                ...v,
-                title: target.title,
-              };
-            return v;
-          }),
-        };
-      });
-    },
-  });
+  const { data: threadList, isLoading } = useChatThreads();
 
   // Check if we have 40 or more threads to display "View All" button
   const hasExcessThreads = threadList && threadList.length >= MAX_THREADS_COUNT;
@@ -128,7 +96,7 @@ export function AppSidebarThreads() {
       const threadDate =
         (thread.lastMessageAt
           ? new Date(thread.lastMessageAt)
-          : new Date(thread.createdAt)) || new Date();
+          : new Date(thread.created_at)) || new Date();
       threadDate.setHours(0, 0, 0, 0);
 
       if (threadDate.getTime() === today.getTime()) {
@@ -150,7 +118,7 @@ export function AppSidebarThreads() {
     await toast.promise(deleteThreadsAction(), {
       loading: t("deletingAllChats"),
       success: () => {
-        mutate("/api/thread");
+        mutate("chat-threads");
         router.push("/");
         return t("allChatsDeleted");
       },
@@ -162,7 +130,7 @@ export function AppSidebarThreads() {
     await toast.promise(deleteUnarchivedThreadsAction(), {
       loading: t("deletingUnarchivedChats"),
       success: () => {
-        mutate("/api/thread");
+        mutate("chat-threads");
         router.push("/");
         return t("unarchivedChatsDeleted");
       },

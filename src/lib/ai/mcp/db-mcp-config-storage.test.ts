@@ -4,13 +4,11 @@ import type { MCPClientsManager } from "./create-mcp-clients-manager";
 import type { MCPServerConfig } from "app-types/mcp";
 
 // Mock dependencies
-vi.mock("lib/db/repository", () => ({
-  mcpRepository: {
-    selectAll: vi.fn(),
-    save: vi.fn(),
-    deleteById: vi.fn(),
-    selectById: vi.fn(),
-  },
+vi.mock("@/services/supabase/mcp-service", () => ({
+  getAllMcpServers: vi.fn(),
+  saveMcpServer: vi.fn(),
+  deleteMcpServer: vi.fn(),
+  getMcpServerById: vi.fn(),
 }));
 
 vi.mock("logger", () => ({
@@ -23,13 +21,7 @@ vi.mock("logger", () => ({
   },
 }));
 
-vi.mock("lib/utils", () => ({
-  createDebounce: vi.fn(() => vi.fn()),
-}));
-
-const mockMcpRepository = await import("lib/db/repository").then(
-  (m) => m.mcpRepository,
-);
+const mockMcpService = await import("@/services/supabase/mcp-service");
 
 describe("DB-based MCP Config Storage", () => {
   let storage: ReturnType<typeof createDbBasedMCPConfigsStorage>;
@@ -44,6 +36,18 @@ describe("DB-based MCP Config Storage", () => {
     visibility: "private" as const,
     createdAt: new Date(),
     updatedAt: new Date(),
+  };
+
+  // Supabase format (snake_case) - what the service returns
+  const mockSupabaseServer = {
+    id: "test-server",
+    name: "test-server",
+    config: { command: "python", args: ["test.py"] } as MCPServerConfig,
+    enabled: true,
+    user_id: "test-user-id",
+    visibility: "private",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   beforeEach(() => {
@@ -73,16 +77,18 @@ describe("DB-based MCP Config Storage", () => {
 
   describe("loadAll", () => {
     it("should load all servers from database", async () => {
-      vi.mocked(mockMcpRepository.selectAll).mockResolvedValue([mockServer]);
+      vi.mocked(mockMcpService.getAllMcpServers).mockResolvedValue([
+        mockSupabaseServer,
+      ]);
 
       const result = await storage.loadAll();
 
-      expect(mockMcpRepository.selectAll).toHaveBeenCalledOnce();
+      expect(mockMcpService.getAllMcpServers).toHaveBeenCalledOnce();
       expect(result).toEqual([mockServer]);
     });
 
     it("should return empty array when database fails", async () => {
-      vi.mocked(mockMcpRepository.selectAll).mockRejectedValue(
+      vi.mocked(mockMcpService.getAllMcpServers).mockRejectedValue(
         new Error("Database error"),
       );
 
@@ -100,11 +106,20 @@ describe("DB-based MCP Config Storage", () => {
         config: { url: "https://example.com" } as MCPServerConfig,
       };
 
-      vi.mocked(mockMcpRepository.save).mockResolvedValue({
-        ...serverToSave,
-        userId: "test-user-id",
-        visibility: "private" as const,
-      });
+      const supabaseResponse = {
+        id: "new-server",
+        name: "new-server",
+        config: { url: "https://example.com" } as MCPServerConfig,
+        enabled: true,
+        user_id: "test-user-id",
+        visibility: "private",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      vi.mocked(mockMcpService.saveMcpServer).mockResolvedValue(
+        supabaseResponse,
+      );
 
       const serverWithUserId = {
         ...serverToSave,
@@ -113,7 +128,9 @@ describe("DB-based MCP Config Storage", () => {
 
       const result = await storage.save(serverWithUserId);
 
-      expect(mockMcpRepository.save).toHaveBeenCalledWith(serverWithUserId);
+      expect(mockMcpService.saveMcpServer).toHaveBeenCalledWith(
+        serverWithUserId,
+      );
       expect(result).toEqual(expect.objectContaining(serverToSave));
     });
 
@@ -124,7 +141,7 @@ describe("DB-based MCP Config Storage", () => {
         config: { url: "https://example.com" } as MCPServerConfig,
       };
 
-      vi.mocked(mockMcpRepository.save).mockRejectedValue(
+      vi.mocked(mockMcpService.saveMcpServer).mockRejectedValue(
         new Error("Save failed"),
       );
 
@@ -139,15 +156,17 @@ describe("DB-based MCP Config Storage", () => {
 
   describe("delete", () => {
     it("should delete server from database", async () => {
-      vi.mocked(mockMcpRepository.deleteById).mockResolvedValue();
+      vi.mocked(mockMcpService.deleteMcpServer).mockResolvedValue();
 
       await storage.delete("test-server");
 
-      expect(mockMcpRepository.deleteById).toHaveBeenCalledWith("test-server");
+      expect(mockMcpService.deleteMcpServer).toHaveBeenCalledWith(
+        "test-server",
+      );
     });
 
     it("should throw error when delete fails", async () => {
-      vi.mocked(mockMcpRepository.deleteById).mockRejectedValue(
+      vi.mocked(mockMcpService.deleteMcpServer).mockRejectedValue(
         new Error("Delete failed"),
       );
 
@@ -159,16 +178,20 @@ describe("DB-based MCP Config Storage", () => {
 
   describe("has", () => {
     it("should return true when server exists", async () => {
-      vi.mocked(mockMcpRepository.selectById).mockResolvedValue(mockServer);
+      vi.mocked(mockMcpService.getMcpServerById).mockResolvedValue(
+        mockSupabaseServer,
+      );
 
       const result = await storage.has("test-server");
 
       expect(result).toBe(true);
-      expect(mockMcpRepository.selectById).toHaveBeenCalledWith("test-server");
+      expect(mockMcpService.getMcpServerById).toHaveBeenCalledWith(
+        "test-server",
+      );
     });
 
     it("should return false when server does not exist", async () => {
-      vi.mocked(mockMcpRepository.selectById).mockResolvedValue(null);
+      vi.mocked(mockMcpService.getMcpServerById).mockResolvedValue(null);
 
       const result = await storage.has("non-existent");
 
@@ -176,7 +199,7 @@ describe("DB-based MCP Config Storage", () => {
     });
 
     it("should return false when database query fails", async () => {
-      vi.mocked(mockMcpRepository.selectById).mockRejectedValue(
+      vi.mocked(mockMcpService.getMcpServerById).mockRejectedValue(
         new Error("Database error"),
       );
 
@@ -188,16 +211,20 @@ describe("DB-based MCP Config Storage", () => {
 
   describe("get", () => {
     it("should return server when it exists", async () => {
-      vi.mocked(mockMcpRepository.selectById).mockResolvedValue(mockServer);
+      vi.mocked(mockMcpService.getMcpServerById).mockResolvedValue(
+        mockSupabaseServer,
+      );
 
       const result = await storage.get("test-server");
 
       expect(result).toEqual(mockServer);
-      expect(mockMcpRepository.selectById).toHaveBeenCalledWith("test-server");
+      expect(mockMcpService.getMcpServerById).toHaveBeenCalledWith(
+        "test-server",
+      );
     });
 
     it("should return null when server does not exist", async () => {
-      vi.mocked(mockMcpRepository.selectById).mockResolvedValue(null);
+      vi.mocked(mockMcpService.getMcpServerById).mockResolvedValue(null);
 
       const result = await storage.get("non-existent");
 

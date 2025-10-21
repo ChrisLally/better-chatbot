@@ -83,22 +83,28 @@ export function canDeleteAgent(userRoleString?: string | null): boolean {
 /**
  * Check if user can create workflows (client-side)
  */
-export function canCreateWorkflow(userRoleString?: string | null): boolean {
-  return hasPermission(userRoleString, "create", "workflow");
+export function canCreateWorkflow(_userRoleString?: string | null): boolean {
+  // Allow all authenticated users to create workflows (until workspaces are added)
+  // TODO: Add role-based access control when implementing workspaces/organizations
+  return true;
 }
 
 /**
  * Check if user can edit workflows (client-side)
  */
-export function canEditWorkflow(userRoleString?: string | null): boolean {
-  return hasPermission(userRoleString, "update", "workflow");
+export function canEditWorkflow(_userRoleString?: string | null): boolean {
+  // Allow all authenticated users to edit workflows (until workspaces are added)
+  // TODO: Add role-based access control when implementing workspaces/organizations
+  return true;
 }
 
 /**
  * Check if user can delete workflows (client-side)
  */
-export function canDeleteWorkflow(userRoleString?: string | null): boolean {
-  return hasPermission(userRoleString, "delete", "workflow");
+export function canDeleteWorkflow(_userRoleString?: string | null): boolean {
+  // Allow all authenticated users to delete workflows (until workspaces are added)
+  // TODO: Add role-based access control when implementing workspaces/organizations
+  return true;
 }
 
 /**

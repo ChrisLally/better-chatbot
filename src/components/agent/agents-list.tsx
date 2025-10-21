@@ -11,14 +11,17 @@ import { useBookmark } from "@/hooks/queries/use-bookmark";
 import { useMutateAgents } from "@/hooks/queries/use-agents";
 import { toast } from "sonner";
 import useSWR from "swr";
-import { fetcher } from "lib/utils";
 import { Visibility } from "@/components/shareable-actions";
 import { ShareableCard } from "@/components/shareable-card";
 import { notify } from "lib/notify";
 import { useState } from "react";
 import { handleErrorWithToast } from "ui/shared-toast";
-import { safe } from "ts-safe";
 import { canCreateAgent } from "lib/auth/client-permissions";
+import {
+  getAgentsAction,
+  updateAgentAction,
+  deleteAgentAction,
+} from "@/app/actions/agent-actions";
 
 interface AgentsListProps {
   initialMyAgents: AgentSummary[];
@@ -43,8 +46,8 @@ export function AgentsList({
   >(null);
 
   const { data: allAgents } = useSWR(
-    "/api/agent?filters=mine,shared",
-    fetcher,
+    "agents-mine,shared-50",
+    () => getAgentsAction(["mine", "shared"], 50),
     {
       fallbackData: [...initialMyAgents, ...initialSharedAgents],
     },
@@ -68,24 +71,29 @@ export function AgentsList({
   };
 
   const updateVisibility = async (agentId: string, visibility: Visibility) => {
-    safe(() => setVisibilityChangeLoading(agentId))
-      .map(() => AgentUpdateSchema.parse({ visibility }))
-      .map(JSON.stringify)
-      .map(async (body) =>
-        fetcher(`/api/agent/${agentId}`, {
-          method: "PUT",
-          body,
-        }),
-      )
-      .ifOk(() => {
+    try {
+      setVisibilityChangeLoading(agentId);
+      const validatedUpdate = AgentUpdateSchema.parse({ visibility });
+
+      const result = await updateAgentAction(agentId, validatedUpdate);
+
+      if (result.success) {
         mutateAgents({ id: agentId, visibility });
         toast.success(t("Agent.visibilityUpdated"));
-      })
-      .ifFail((e) => {
-        handleErrorWithToast(e);
+      } else {
+        handleErrorWithToast(
+          new Error(result.error || "Failed to update visibility"),
+        );
         toast.error(t("Common.error"));
-      })
-      .watch(() => setVisibilityChangeLoading(null));
+      }
+    } catch (error) {
+      handleErrorWithToast(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      toast.error(t("Common.error"));
+    } finally {
+      setVisibilityChangeLoading(null);
+    }
   };
 
   const deleteAgent = async (agentId: string) => {
@@ -93,21 +101,28 @@ export function AgentsList({
       description: t("Agent.deleteConfirm"),
     });
     if (!ok) return;
-    safe(() => setDeletingAgentLoading(agentId))
-      .map(() =>
-        fetcher(`/api/agent/${agentId}`, {
-          method: "DELETE",
-        }),
-      )
-      .ifOk(() => {
+
+    try {
+      setDeletingAgentLoading(agentId);
+      const result = await deleteAgentAction(agentId);
+
+      if (result.success) {
         mutateAgents({ id: agentId }, true);
         toast.success(t("Agent.deleted"));
-      })
-      .ifFail((e) => {
-        handleErrorWithToast(e);
+      } else {
+        handleErrorWithToast(
+          new Error(result.error || "Failed to delete agent"),
+        );
         toast.error(t("Common.error"));
-      })
-      .watch(() => setDeletingAgentLoading(null));
+      }
+    } catch (error) {
+      handleErrorWithToast(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      toast.error(t("Common.error"));
+    } finally {
+      setDeletingAgentLoading(null);
+    }
   };
 
   // Check if user can create agents using Better Auth permissions

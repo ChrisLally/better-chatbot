@@ -350,7 +350,7 @@ test.describe("Resource Permissions - Admin User", () => {
 });
 
 test.describe("Permission Boundaries - Cross-Role Verification", () => {
-  test("verify regular user cannot access editor endpoints", async ({
+  test("verify regular user cannot create agents through UI", async ({
     browser,
   }) => {
     // Create a new context with regular user auth
@@ -359,57 +359,55 @@ test.describe("Permission Boundaries - Cross-Role Verification", () => {
     });
     const page = await context.newPage();
 
-    // Try to create an agent - should fail
-    const response = await page.request.post("/api/agent", {
-      data: {
-        name: "Test Agent",
-        description: "Should not be created",
-      },
-    });
+    // Try to access agent creation page - should not see create button
+    await page.goto("/agents");
 
-    expect(response.status()).toBe(403);
-    const body = await response.json();
-    expect(body.error).toContain("permission");
+    // Should NOT see the "Create Agent" button in header
+    await expect(page.getByTestId("create-agent-button")).not.toBeVisible();
+
+    // Should NOT see the create agent card
+    await expect(page.getByTestId("create-agent-card")).not.toBeVisible();
 
     await context.close();
   });
 
-  test("verify editor can access creation endpoints", async ({ browser }) => {
+  test("verify editor can create agents through UI", async ({ browser }) => {
     // Create a new context with editor user auth
     const context = await browser.newContext({
       storageState: TEST_USERS.editor.authFile,
     });
     const page = await context.newPage();
 
-    const user = await page.request.get("/api/user/details");
-    const userData = await user.json();
+    // Navigate to agents page and verify editor can see create button
+    await page.goto("/agents");
 
-    // Try to create an agent - should succeed
-    const response = await page.request.post("/api/agent", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      data: {
-        name: `API Test Agent ${Date.now()}`,
-        description: "Created via API test",
-        instructions: {},
-        visibility: "private",
-        icon: {
-          type: "emoji",
-          value: "🤖",
-        },
-        userId: userData.id,
-      },
-    });
+    // Should see the "Create Agent" button in header
+    await expect(page.getByTestId("create-agent-button")).toBeVisible();
 
-    // expect(response.status()).toBe(200);
-    const agent = await response.json();
-    expect(agent.id).toBeDefined();
+    // Should see the create agent card
+    await expect(page.getByTestId("create-agent-card")).toBeVisible();
 
-    // Clean up - delete the created agent
-    await page.request.delete(`/api/agent/${agent.id}`);
+    // Click create new agent button
+    await page.getByTestId("create-agent-button").click();
 
-    // await context.close();
+    // Wait for navigation to agent creation page
+    await page.waitForURL("/agent/new");
+
+    // Fill in agent details
+    const agentName = `Test Agent ${Date.now()}`;
+    await page.getByTestId("agent-name-input").fill(agentName);
+    await page.getByTestId("agent-description-input").fill("Test description");
+
+    // Save the agent
+    await page.getByTestId("agent-save-button").click();
+
+    // Should navigate back to agents list
+    await page.waitForURL("**/agents");
+
+    // Verify agent was created by checking if it appears in the list
+    await expect(page.locator(`main a:has-text("${agentName}")`)).toBeVisible();
+
+    await context.close();
   });
 });
 

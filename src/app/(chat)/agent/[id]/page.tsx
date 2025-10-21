@@ -1,5 +1,5 @@
 import EditAgent from "@/components/agent/edit-agent";
-import { agentRepository } from "lib/db/repository";
+import { getAgent } from "@/services/supabase/users-service";
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { notFound } from "next/navigation";
 
@@ -18,14 +18,15 @@ export default async function AgentPage({
   }
 
   // Fetch the agent data on the server
-  const agent = await agentRepository.selectAgentById(id, user!.id);
+  const agent = await getAgent(id);
 
   if (!agent) {
     notFound();
   }
 
+  // Allow any authenticated user to edit agents (until workspaces are added)
   const isOwner = agent.userId === user!.id;
-  const hasEditAccess = isOwner || agent.visibility === "public";
+  const hasEditAccess = true; // Allow all authenticated users to edit for now
 
   return (
     <EditAgent
@@ -34,7 +35,7 @@ export default async function AgentPage({
       userId={user!.id}
       isOwner={isOwner}
       hasEditAccess={hasEditAccess}
-      isBookmarked={agent.isBookmarked || false}
+      isBookmarked={false}
     />
   );
 }

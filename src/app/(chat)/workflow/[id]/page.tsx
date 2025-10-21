@@ -4,7 +4,7 @@ import {
 } from "lib/ai/workflow/shared.workflow";
 import Workflow from "@/components/workflow/workflow";
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
-import { workflowRepository } from "lib/db/repository";
+import { getWorkflowStructure } from "@/services/supabase/workflow-service";
 import { notFound } from "next/navigation";
 
 export default async function WorkflowPage({
@@ -14,24 +14,19 @@ export default async function WorkflowPage({
 }) {
   const { id } = await params;
   // Middleware already handles auth redirect
-  const user = await getSupabaseUser();
+  const _user = await getSupabaseUser();
 
-  const hasAccess = await workflowRepository.checkAccess(id, user!.id);
-  if (!hasAccess) {
-    notFound();
-  }
-
-  const workflow = await workflowRepository.selectStructureById(id);
+  const workflow = await getWorkflowStructure(id);
   if (!workflow) {
     notFound();
   }
-  const hasEditAccess = await workflowRepository.checkAccess(
-    id,
-    user!.id,
-    false,
-  );
-  const initialNodes = workflow.nodes.map(convertDBNodeToUINode);
-  const initialEdges = workflow.edges.map(convertDBEdgeToUIEdge);
+
+  // Allow any authenticated user to edit workflows (until workspaces are added)
+  // TODO: Add access control when implementing workspaces/organizations
+  const hasEditAccess = true;
+
+  const initialNodes = (workflow.nodes || []).map(convertDBNodeToUINode);
+  const initialEdges = (workflow.edges || []).map(convertDBEdgeToUIEdge);
   return (
     <Workflow
       key={id}

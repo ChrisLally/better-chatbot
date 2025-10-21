@@ -42,7 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "ui/dropdown-menu";
 import { useTranslations } from "next-intl";
-import { addItemToArchiveAction } from "@/app/api/archive/actions";
+import { addArchiveItemAction } from "@/app/actions/archive-actions";
 import { useShallow } from "zustand/shallow";
 import { ChatExportPopup } from "./export/chat-export-popup";
 
@@ -82,7 +82,7 @@ export function ThreadDropdown({
         }
       })
       .ifOk(() => updateThreadAction(threadId, { title }))
-      .ifOk(() => mutate("/api/thread"))
+      .ifOk(() => mutate("chat-threads"))
       .watch(({ isOk, error }) => {
         if (isOk) {
           toast.success(t("Chat.Thread.threadUpdated"));
@@ -110,14 +110,14 @@ export function ThreadDropdown({
         if (currentThreadId === threadId) {
           push.current("/");
         }
-        mutate("/api/thread");
+        mutate("chat-threads");
       })
       .unwrap();
   };
 
   const handleAddToArchive = async (archiveId: string) => {
     safe()
-      .ifOk(() => addItemToArchiveAction(archiveId, threadId))
+      .ifOk(() => addArchiveItemAction(archiveId, threadId))
       .watch(({ isOk, error }) => {
         if (isOk) {
           toast.success(t("Archive.itemAddedToArchive"));

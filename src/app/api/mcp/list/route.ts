@@ -1,6 +1,6 @@
 import { MCPServerInfo } from "app-types/mcp";
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
-import { mcpRepository } from "lib/db/repository";
+import { getMcpServersForUser } from "@/services/supabase/mcp-service";
 import { getCurrentUser } from "lib/auth/permissions";
 
 export async function GET() {
@@ -11,17 +11,33 @@ export async function GET() {
   }
 
   const [servers, memoryClients] = await Promise.all([
-    mcpRepository.selectAllForUser(currentUser.id),
+    getMcpServersForUser(currentUser.id),
     mcpClientsManager.getClients(),
   ]);
+
+  // Convert from Supabase format to expected format
+  const convertedServers = servers.map((s) => ({
+    id: s.id,
+    name: s.name,
+    config: s.config as any,
+    enabled: s.enabled,
+    userId: s.user_id,
+    visibility: s.visibility as "public" | "private",
+    createdAt: new Date(s.created_at),
+    updatedAt: new Date(s.updated_at),
+    userName: s.userName,
+    userAvatar: s.userAvatar,
+  }));
 
   const memoryMap = new Map(
     memoryClients.map(({ id, client }) => [id, client] as const),
   );
 
-  const addTargets = servers.filter((server) => !memoryMap.has(server.id));
+  const addTargets = convertedServers.filter(
+    (server) => !memoryMap.has(server.id),
+  );
 
-  const serverIds = new Set(servers.map((s) => s.id));
+  const serverIds = new Set(convertedServers.map((s) => s.id));
   const removeTargets = memoryClients.filter(({ id }) => !serverIds.has(id));
 
   if (addTargets.length > 0) {
@@ -39,7 +55,7 @@ export async function GET() {
     );
   }
 
-  const result = servers.map((server) => {
+  const result = convertedServers.map((server) => {
     const mem = memoryMap.get(server.id);
     const info = mem?.getInfo();
     const mcpInfo: MCPServerInfo = {

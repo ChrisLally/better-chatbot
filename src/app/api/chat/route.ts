@@ -13,7 +13,12 @@ import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
 
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 
-import { agentRepository, chatRepository } from "lib/db/repository";
+import {
+  getThread,
+  createThread,
+  createMessage,
+} from "@/services/supabase/chat-service";
+import { updateAgent } from "@/services/supabase/users-service";
 import globalLogger from "logger";
 import {
   buildMcpServerCustomizationsSystemPrompt,
@@ -76,23 +81,25 @@ export async function POST(request: Request) {
 
     const model = customModelProvider.getModel(chatModel);
 
-    let thread = await chatRepository.selectThreadDetails(id);
+    let threadData = await getThread(id);
 
-    if (!thread) {
+    if (!threadData) {
       logger.info(`create chat thread: ${id}`);
-      const newThread = await chatRepository.insertThread({
+      threadData = await createThread({
         id,
         title: "",
-        userId: user.id,
       });
-      thread = await chatRepository.selectThreadDetails(newThread.id);
     }
 
-    if (thread!.userId !== user.id) {
+    if (threadData.userId !== user.id) {
       return new Response("Forbidden", { status: 403 });
     }
 
-    const messages: UIMessage[] = (thread?.messages ?? []).map((m) => {
+    // Get messages for the thread
+    const { getMessages } = await import("@/services/supabase/chat-service");
+    const threadMessages = await getMessages(id);
+
+    const messages: UIMessage[] = threadMessages.map((m) => {
       return {
         id: m.id,
         role: m.role,
@@ -191,7 +198,7 @@ export async function POST(request: Request) {
           );
         }
 
-        const userPreferences = thread?.userPreferences || undefined;
+        const userPreferences = user.preferences || undefined;
 
         const mcpServerCustomizations = await safe()
           .map(() => {
@@ -282,32 +289,31 @@ export async function POST(request: Request) {
       generateId: generateUUID,
       onFinish: async ({ responseMessage }) => {
         if (responseMessage.id == message.id) {
-          await chatRepository.upsertMessage({
-            threadId: thread!.id,
-            ...responseMessage,
+          await createMessage({
+            id: responseMessage.id,
+            threadId: threadData!.id,
+            role: responseMessage.role,
             parts: responseMessage.parts.map(convertToSavePart),
             metadata,
           });
         } else {
-          await chatRepository.upsertMessage({
-            threadId: thread!.id,
+          await createMessage({
+            id: message.id,
+            threadId: threadData!.id,
             role: message.role,
             parts: message.parts.map(convertToSavePart),
-            id: message.id,
           });
-          await chatRepository.upsertMessage({
-            threadId: thread!.id,
-            role: responseMessage.role,
+          await createMessage({
             id: responseMessage.id,
+            threadId: threadData!.id,
+            role: responseMessage.role,
             parts: responseMessage.parts.map(convertToSavePart),
             metadata,
           });
         }
 
         if (agent) {
-          agentRepository.updateAgent(agent.id, user.id, {
-            updatedAt: new Date(),
-          } as any);
+          updateAgent(agent.id, {});
         }
       },
       onError: handleError,

@@ -8,6 +8,7 @@ import {
   UINode,
   OutputSchemaSourceKey,
   WorkflowNodeData,
+  NodeKind,
 } from "./workflow.interface";
 import { exclude, isString } from "lib/utils";
 import { DBEdge, DBNode } from "app-types/workflow";
@@ -120,18 +121,83 @@ export function convertUINodeToDBNode(
   };
 }
 
+// Deterministic seeded random for consistent node positions
+function seededRandom(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash % 10000) / 10000;
+}
+
 export function convertDBNodeToUINode(node: DBNode): UINode {
+  const uiConfig = (node.uiConfig as any) || {};
+  const nodeConfig = (node.nodeConfig as any) || {};
+
+  // Determine position: use stored position or generate deterministic default
+  const position = uiConfig.position || {
+    x: seededRandom(node.id) * 500,
+    y: seededRandom(node.id + "y") * 500,
+  };
+
+  // Ensure all nodes have outputSchema
+  if (!nodeConfig.outputSchema) {
+    nodeConfig.outputSchema = structuredClone(defaultObjectJsonSchema);
+  }
+
+  // Ensure condition nodes have required branches structure
+  if (node.kind === NodeKind.Condition) {
+    if (!nodeConfig.branches) {
+      nodeConfig.branches = {};
+    }
+    // Ensure 'if' branch exists
+    if (!nodeConfig.branches.if) {
+      nodeConfig.branches.if = {
+        id: "if",
+        type: "if",
+        conditions: [],
+        logicalOperator: "AND",
+      };
+    }
+    // Ensure 'else' branch exists
+    if (!nodeConfig.branches.else) {
+      nodeConfig.branches.else = {
+        id: "else",
+        type: "else",
+        conditions: [],
+        logicalOperator: "AND",
+      };
+    }
+    // Ensure elseIf branches are an array if it exists but isn't
+    if (
+      nodeConfig.branches.elseIf &&
+      !Array.isArray(nodeConfig.branches.elseIf)
+    ) {
+      nodeConfig.branches.elseIf = [];
+    }
+  }
+
+  // Ensure output nodes have required outputData structure
+  if (node.kind === NodeKind.Output) {
+    if (!nodeConfig.outputData) {
+      nodeConfig.outputData = [];
+    }
+  }
+
   const uiNode: UINode = {
     id: node.id,
-    ...(node.uiConfig as any),
+    position,
+    ...uiConfig,
     data: {
-      ...(node.nodeConfig as any),
+      ...nodeConfig,
       id: node.id,
       name: node.name,
       description: node.description || "",
       kind: node.kind as any,
     },
-    type: node.uiConfig.type || "default",
+    type: uiConfig.type || "default",
   };
   return uiNode;
 }

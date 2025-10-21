@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { mcpOAuthRepository } from "@/lib/db/repository";
+import { getMcpOAuthSessionByState } from "@/services/supabase/mcp-service";
 import { mcpClientsManager } from "lib/ai/mcp/mcp-manager";
 
 import globalLogger from "logger";
@@ -123,9 +123,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Find the OAuth session by state
-  const session = await mcpOAuthRepository.getSessionByState(
-    callbackData.state,
-  );
+  const session = await getMcpOAuthSessionByState(callbackData.state);
   if (!session) {
     return createOAuthResponsePage({
       type: "error",
@@ -141,11 +139,11 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const client = await mcpClientsManager.getClient(session.mcpServerId);
+  const client = await mcpClientsManager.getClient(session.mcp_server_id);
 
   try {
     await client?.client.finishAuth(callbackData.code, callbackData.state);
-    await mcpClientsManager.refreshClient(session.mcpServerId);
+    await mcpClientsManager.refreshClient(session.mcp_server_id);
 
     return createOAuthResponsePage({
       type: "success",

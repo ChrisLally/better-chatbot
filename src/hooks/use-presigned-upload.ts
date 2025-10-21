@@ -1,20 +1,28 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { upload as uploadToVercelBlob } from "@vercel/blob/client";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { getStorageInfoAction } from "@/app/api/storage/actions";
 
 // Types
 interface StorageInfo {
-  type: "local" | "vercel-blob" | "s3";
+  type: "supabase-storage";
   supportsDirectUpload: boolean;
+  maxFileSize?: number;
+  allowedMimeTypes?: string[];
+  buckets?: {
+    default: string;
+    chatAttachments: string;
+    publicAssets: string;
+  };
 }
 
 interface UploadOptions {
   filename?: string;
   contentType?: string;
+  path?: string;
+  bucket?: string;
 }
 
 interface UploadResult {
@@ -22,6 +30,7 @@ interface UploadResult {
   url: string;
   contentType?: string;
   size?: number;
+  id?: string;
 }
 
 // Helpers
@@ -83,7 +92,8 @@ export function useFileUpload() {
         return;
       }
 
-      const filename = uploadOptions.filename ?? file.name;
+      // Note: filename from uploadOptions or file.name - currently unused but available if needed
+      // const filename = uploadOptions.filename ?? file.name;
       const contentType =
         uploadOptions.contentType || file.type || "application/octet-stream";
 
@@ -95,29 +105,16 @@ export function useFileUpload() {
 
       setIsUploading(true);
       try {
-        // Vercel Blob direct upload
-        if (storageType === "vercel-blob") {
-          const blob = await uploadToVercelBlob(filename, file, {
-            access: "public",
-            handleUploadUrl: "/api/storage/upload-url",
-            contentType,
-          });
-
-          return {
-            pathname: blob.pathname,
-            url: blob.url,
-            contentType: blob.contentType,
-            size: file.size,
-          };
-        }
-
-        // S3 or other direct upload (future)
-        if (supportsDirectUpload && storageType === "s3") {
-          // Request presigned URL
+        // Supabase Storage direct upload
+        if (supportsDirectUpload && storageType === "supabase-storage") {
+          // Request signed upload URL
           const uploadUrlResponse = await fetch("/api/storage/upload-url", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ filename, contentType }),
+            body: JSON.stringify({
+              path: uploadOptions.path || "",
+              bucket: uploadOptions.bucket,
+            }),
           });
 
           if (!uploadUrlResponse.ok) {
@@ -137,10 +134,48 @@ export function useFileUpload() {
 
           const uploadUrlData = await uploadUrlResponse.json();
 
-          // Upload to presigned URL
-          const uploadResponse = await fetch(uploadUrlData.url, {
-            method: uploadUrlData.method || "PUT",
-            headers: uploadUrlData.headers || { "Content-Type": contentType },
+          if (!uploadUrlData.directUploadSupported) {
+            // Fallback to server upload
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("path", uploadOptions.path || "");
+
+            const serverUploadResponse = await fetch("/api/storage/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!serverUploadResponse.ok) {
+              const errorBody = await serverUploadResponse
+                .json()
+                .catch(() => ({}));
+
+              if (errorBody.solution) {
+                toast.error(errorBody.error || "Server upload failed", {
+                  description: errorBody.solution,
+                  duration: 10000,
+                });
+              } else {
+                toast.error(errorBody.error || "Server upload failed");
+              }
+              return;
+            }
+
+            const result = await serverUploadResponse.json();
+
+            return {
+              pathname: result.path,
+              url: result.url,
+              contentType: file.type,
+              size: file.size,
+              id: result.id,
+            };
+          }
+
+          // Upload to signed URL
+          const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": contentType },
             body: file,
           });
 
@@ -150,16 +185,17 @@ export function useFileUpload() {
           }
 
           return {
-            pathname: uploadUrlData.key,
-            url: uploadUrlData.url,
+            pathname: uploadUrlData.path,
+            url: uploadUrlData.uploadUrl, // Return the signed URL as the URL
             contentType,
             size: file.size,
           };
         }
 
-        // Fallback: Server upload (Local FS)
+        // Fallback: Server upload
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("path", uploadOptions.path || "");
 
         const serverUploadResponse = await fetch("/api/storage/upload", {
           method: "POST",
@@ -184,10 +220,11 @@ export function useFileUpload() {
         const result = await serverUploadResponse.json();
 
         return {
-          pathname: result.key,
+          pathname: result.path,
           url: result.url,
-          contentType: result.metadata?.contentType,
-          size: result.metadata?.size,
+          contentType: file.type,
+          size: file.size,
+          id: result.id,
         };
       } catch (error: unknown) {
         const message =

@@ -2,9 +2,9 @@
 import { appStore } from "@/app/store";
 import useSWR, { SWRConfiguration, useSWRConfig } from "swr";
 import { handleErrorWithToast } from "ui/shared-toast";
-import { fetcher } from "lib/utils";
 import { AgentSummary } from "app-types/agent";
 import { useAuth } from "@/context/auth-context";
+import { getAgentsAction } from "@/app/actions/agent-actions";
 
 interface UseAgentsOptions extends SWRConfiguration {
   filters?: ("all" | "mine" | "shared" | "bookmarked")[];
@@ -12,21 +12,17 @@ interface UseAgentsOptions extends SWRConfiguration {
 }
 
 export function useAgents(options: UseAgentsOptions = {}) {
-  const { filters = ["all"], limit = 50, ...swrOptions } = options;
+  const { filters = ["mine", "shared"], limit = 50, ...swrOptions } = options;
 
-  // Build query string with filters
-  const filtersParam = filters.join(",");
-  const queryParams = new URLSearchParams({
-    filters: filtersParam,
-    limit: limit.toString(),
-  });
+  // Build cache key for SWR
+  const cacheKey = `agents-${filters.join(",")}-${limit}`;
 
   const {
     data: agents = [],
     error,
     isLoading,
     mutate,
-  } = useSWR<AgentSummary[]>(`/api/agent?${queryParams.toString()}`, fetcher, {
+  } = useSWR<AgentSummary[]>(cacheKey, () => getAgentsAction(filters, limit), {
     errorRetryCount: 0,
     revalidateOnFocus: false,
     fallbackData: [],
@@ -88,14 +84,12 @@ export function useMutateAgents() {
     updatedAgent?: Partial<AgentSummary> & { id: string },
     deleteAgent?: boolean,
   ) => {
-    // Update all agent list endpoints (with or without query strings)
+    // Update all agent list caches (new cache key pattern)
     mutate(
       (key) => {
         if (typeof key !== "string") return false;
-        // Match /api/agent or /api/agent?... but not /api/agent/id
-        return (
-          key.startsWith("/api/agent") && !key.match(/\/api\/agent\/[^/?]+/)
-        );
+        // Match agent list cache keys: agents-{filters}-{limit}
+        return key.startsWith("agents-");
       },
       (cachedData: any) => {
         if (!cachedData || !Array.isArray(cachedData) || !updatedAgent)
@@ -133,13 +127,13 @@ export function useMutateAgents() {
     if (updatedAgent?.id) {
       if (deleteAgent) {
         // For deleted agents, invalidate the individual cache
-        mutate(`/api/agent/${updatedAgent.id}`, undefined, {
+        mutate(`agent-${updatedAgent.id}`, undefined, {
           revalidate: true,
         });
       } else {
         // For updated agents, update the individual cache
         mutate(
-          `/api/agent/${updatedAgent.id}`,
+          `agent-${updatedAgent.id}`,
           (cachedData: any) => {
             if (!cachedData) return cachedData;
             return { ...cachedData, ...updatedAgent };

@@ -21,9 +21,11 @@ import { safe } from "ts-safe";
 import { z } from "zod";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { toast } from "sonner";
-import { mutate } from "swr";
 import { Archive } from "app-types/archive";
-import { fetcher } from "lib/utils";
+import {
+  createArchiveAction,
+  updateArchiveAction,
+} from "@/app/actions/archive-actions";
 
 const zodSchema = z.object({
   name: z.string().min(1).max(100),
@@ -62,15 +64,9 @@ export function ArchiveDialog({
       await safe(() => zodSchema.parse(config))
         .map(async (body) => {
           if (isEdit) {
-            return await fetcher(`/api/archive/${archive.id}`, {
-              method: "PUT",
-              body: JSON.stringify(body),
-            });
+            return await updateArchiveAction(archive.id, body);
           } else {
-            return await fetcher("/api/archive", {
-              method: "POST",
-              body: JSON.stringify(body),
-            });
+            return await createArchiveAction(body);
           }
         })
         .ifOk(() => {
@@ -79,7 +75,6 @@ export function ArchiveDialog({
           );
           onOpenChange?.(false);
           onSuccess?.();
-          mutate("/api/archive");
           if (!isEdit) {
             setConfig({ name: "", description: "" });
           }

@@ -8,7 +8,6 @@ import { ArrowUpRight, ChevronDown, MousePointer2 } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "ui/card";
 import { Button } from "ui/button";
 import useSWR, { mutate } from "swr";
-import { fetcher } from "lib/utils";
 import { Skeleton } from "ui/skeleton";
 import { BackgroundPaths } from "ui/background-paths";
 import { ShareableCard } from "@/components/shareable-card";
@@ -32,35 +31,47 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "ui/dialog";
 import { WorkflowGreeting } from "@/components/workflow/workflow-greeting";
 import { notify } from "lib/notify";
 import { useState } from "react";
+import {
+  createWorkflowAction,
+  updateWorkflowAction,
+  deleteWorkflowAction,
+  updateWorkflowStructureAction,
+  getWorkflowsAction,
+} from "@/app/actions/workflow-actions";
 
 const createWithExample = async (exampleWorkflow: {
   workflow: Partial<DBWorkflow>;
   nodes: Partial<DBNode>[];
   edges: Partial<DBEdge>[];
 }) => {
-  const response = await fetch("/api/workflow", {
-    method: "POST",
-    body: JSON.stringify({
-      ...exampleWorkflow.workflow,
-      noGenerateInputNode: true,
+  try {
+    // Create the workflow
+    const workflow = await createWorkflowAction({
+      name: exampleWorkflow.workflow.name || "Example Workflow",
+      description: exampleWorkflow.workflow.description,
+      icon: exampleWorkflow.workflow.icon,
+      visibility: "public",
       isPublished: true,
-    }),
-  });
+    });
 
-  if (!response.ok) return toast.error("Error creating workflow");
-  const workflow = await response.json();
-  const structureResponse = await fetch(
-    `/api/workflow/${workflow.id}/structure`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        nodes: exampleWorkflow.nodes,
-        edges: exampleWorkflow.edges,
-      }),
-    },
-  );
-  if (!structureResponse.ok) return toast.error("Error creating workflow");
-  return workflow.id as string;
+    // Update the structure - convert camelCase to snake_case for Supabase
+    await updateWorkflowStructureAction(workflow.id, {
+      nodes: exampleWorkflow.nodes.map((node) => ({
+        ...node,
+        ui_config: node.uiConfig,
+        node_config: node.nodeConfig,
+        uiConfig: undefined,
+        nodeConfig: undefined,
+      })),
+      edges: exampleWorkflow.edges,
+    });
+
+    return workflow.id;
+  } catch (error) {
+    console.error("Error creating workflow:", error);
+    toast.error("Error creating workflow");
+    return null;
+  }
 };
 
 interface WorkflowListPageProps {
@@ -79,8 +90,8 @@ export default function WorkflowListPage({
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
   const { data: workflows, isLoading } = useSWR<WorkflowSummary[]>(
-    "/api/workflow",
-    fetcher,
+    "workflows",
+    () => getWorkflowsAction(),
     {
       fallbackData: [],
     },
@@ -98,8 +109,10 @@ export default function WorkflowListPage({
     edges: Partial<DBEdge>[];
   }) => {
     const workflowId = await createWithExample(exampleWorkflow);
-    mutate("/api/workflow");
-    router.push(`/workflow/${workflowId}`);
+    if (workflowId) {
+      mutate("workflows");
+      router.push(`/workflow/${workflowId}`);
+    }
   };
 
   const updateVisibility = async (
@@ -108,16 +121,11 @@ export default function WorkflowListPage({
   ) => {
     try {
       setIsVisibilityChangeLoading(true);
-      const response = await fetch(`/api/workflow/${workflowId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visibility }),
-      });
 
-      if (!response.ok) throw new Error("Failed to update visibility");
+      await updateWorkflowAction(workflowId, { visibility });
 
       // Refresh the workflows data
-      mutate("/api/workflow");
+      mutate("workflows");
       toast.success(t("Workflow.visibilityUpdated"));
     } catch {
       toast.error(t("Common.error"));
@@ -134,13 +142,10 @@ export default function WorkflowListPage({
 
     try {
       setIsDeleteLoading(true);
-      const response = await fetch(`/api/workflow/${workflowId}`, {
-        method: "DELETE",
-      });
 
-      if (!response.ok) throw new Error("Failed to delete workflow");
+      await deleteWorkflowAction(workflowId);
 
-      mutate("/api/workflow");
+      mutate("workflows");
       toast.success(t("Workflow.deleted"));
     } catch (_error) {
       toast.error(t("Common.error"));

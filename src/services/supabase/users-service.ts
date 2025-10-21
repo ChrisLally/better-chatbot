@@ -1,3 +1,4 @@
+import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server-admin";
 import { Tables } from "@/types/supabase";
@@ -172,8 +173,26 @@ export async function createAgent(options: {
       };
     }
 
-    // The trigger should create the user in public.users table automatically
-    // with the metadata fields populated
+    // Update the user row in public.users table with agent-specific fields
+    const { error: updateError } = await supabaseAdmin
+      .from("users")
+      .update({
+        name: options.name || "Unison Agent",
+        description: options.description || null,
+        icon: options.icon || null,
+        instructions: options.instructions || null,
+        visibility: options.visibility || "private",
+        user_type: "agent",
+      })
+      .eq("id", authUser.user.id);
+
+    if (updateError) {
+      console.error("Error updating agent in public.users:", updateError);
+      return {
+        success: false,
+        error: `Failed to save agent details: ${updateError.message}`,
+      };
+    }
 
     return { success: true, agentId: authUser.user.id };
   } catch (error) {
@@ -265,8 +284,8 @@ export async function getAgents(
  * Get agents with advanced filtering
  */
 export async function selectAgents(
-  currentUserId: string,
-  filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["mine", "shared"],
+  _currentUserId: string, // Currently unused - agents shown to all users until workspaces are added
+  _filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["mine", "shared"], // Currently unused
   limit?: number,
 ): Promise<AgentSummary[]> {
   const currentUser = await getSupabaseUser();
@@ -284,13 +303,10 @@ export async function selectAgents(
     .eq("user_type", "agent");
 
   // Apply filters
-  if (filters.includes("mine") && !filters.includes("all")) {
-    query = query.eq("id", currentUserId);
-  }
-
-  if (filters.includes("shared") && !filters.includes("all")) {
-    query = query.or(`id.neq.${currentUserId},visibility.eq.public`);
-  }
+  // NOTE: Currently, agents don't have a creator field. Each agent IS a user in the users table.
+  // Until workspaces/organizations are added, we show all agents to all users.
+  // Filters are accepted for future compatibility but currently show all agents regardless.
+  // TODO: Add creator/workspace relationship when implementing multi-tenant features
 
   if (limit) {
     query = query.limit(limit);

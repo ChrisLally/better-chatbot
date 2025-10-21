@@ -4,10 +4,10 @@ import { customModelProvider } from "lib/ai/models";
 import { CREATE_THREAD_TITLE_PROMPT } from "lib/ai/prompts";
 import globalLogger from "logger";
 import { ChatModel } from "app-types/chat";
-import { chatRepository } from "lib/db/repository";
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { colorize } from "consola/utils";
 import { handleError } from "../shared.chat";
+import { updateThread } from "@/services/supabase/chat-service";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Title API: `),
@@ -43,13 +43,9 @@ export async function POST(request: Request) {
       prompt: message,
       abortSignal: request.signal,
       onFinish: (ctx) => {
-        chatRepository
-          .upsertThread({
-            id: threadId,
-            title: ctx.text,
-            userId: user.id,
-          })
-          .catch((err) => logger.error(err));
+        updateThread(threadId, {
+          title: ctx.text,
+        }).catch((err) => logger.error(err));
       },
     });
 

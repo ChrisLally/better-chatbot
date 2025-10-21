@@ -28,6 +28,7 @@ import {
 } from "lib/ai/workflow/shared.workflow";
 import { NodeKind, UINode } from "lib/ai/workflow/workflow.interface";
 import { wouldCreateCycle } from "lib/ai/workflow/would-create-cycle";
+import { updateWorkflowStructureAction } from "@/app/actions/workflow-actions";
 import { createDebounce, fetcher, generateUUID } from "lib/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
@@ -322,13 +323,12 @@ export default function Workflow({
   );
 }
 
-function saveWorkflow(
+async function saveWorkflow(
   workflowId: string,
   diff: ReturnType<typeof extractWorkflowDiff>,
 ) {
-  return fetch(`/api/workflow/${workflowId}/structure`, {
-    method: "POST",
-    body: JSON.stringify({
+  try {
+    await updateWorkflowStructureAction(workflowId, {
       nodes: diff.updateNodes.map((node) =>
         convertUINodeToDBNode(workflowId, node),
       ),
@@ -337,10 +337,8 @@ function saveWorkflow(
       ),
       deleteNodes: diff.deleteNodes.map((node) => node.id),
       deleteEdges: diff.deleteEdges.map((edge) => edge.id),
-    }),
-  }).then((res) => {
-    if (res.status >= 400) {
-      throw new Error(String(res.statusText || res.status || "Error"));
-    }
-  });
+    });
+  } catch (error) {
+    throw new Error(String(error));
+  }
 }
