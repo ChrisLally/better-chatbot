@@ -110,8 +110,10 @@ export function canDeleteWorkflow(_userRoleString?: string | null): boolean {
 /**
  * Check if user can create MCP connections (client-side)
  */
-export function canCreateMCP(userRoleString?: string | null): boolean {
-  return hasPermission(userRoleString, "create", "mcp");
+export function canCreateMCP(_userRoleString?: string | null): boolean {
+  // TODO: Implement proper role-based permissions
+  // For now, allow any authenticated user to create MCP connections
+  return true;
 }
 
 /**
