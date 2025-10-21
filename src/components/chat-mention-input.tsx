@@ -28,6 +28,9 @@ import { DefaultToolIcon } from "./default-tool-icon";
 import equal from "lib/equal";
 import { EMOJI_DATA } from "lib/const";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useMcpList } from "@/hooks/queries/use-mcp-list";
+import { useWorkflowToolList } from "@/hooks/queries/use-workflow-tool-list";
+import { useAgents } from "@/hooks/queries/use-agents";
 
 type MentionItemType = {
   id: string;
@@ -156,6 +159,12 @@ export function ChatMentionInputSuggestion({
   disabledType?: ("mcp" | "workflow" | "defaultTool" | "agent")[];
 }) {
   const t = useTranslations("Common");
+
+  // Ensure data is fetched from the APIs and populated in the store
+  useMcpList();
+  useWorkflowToolList();
+  useAgents();
+
   const [mcpList, workflowList, agentList] = appStore(
     useShallow((state) => [
       state.mcpList,

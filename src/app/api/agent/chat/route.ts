@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAgentAction } from "@/app/actions/agent-actions";
+import { getSupabaseAdmin } from "@/lib/supabase/server-admin";
 import { customModelProvider } from "@/lib/ai/models";
 import { buildUserSystemPrompt } from "@/lib/ai/prompts";
 import { streamText } from "ai";
@@ -12,32 +12,59 @@ export async function POST(request: NextRequest) {
     if (!agent_id || !message) {
       return NextResponse.json(
         { error: "agent_id and message are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // API key authentication - hardcoded for now
     if (api_key !== "temp_api_key") {
+      return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
+    }
+
+    // Get the agent using admin client (no user auth required for API access)
+    const supabase = await getSupabaseAdmin();
+
+    const { data: agentData, error } = await supabase
+      .from("users")
+      .select(
+        "id, name, description, icon, instructions, visibility, created_at, updated_at",
+      )
+      .eq("id", agent_id)
+      .eq("user_type", "agent")
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+      }
+      console.error("Error fetching agent:", error);
       return NextResponse.json(
-        { error: "Invalid API key" },
-        { status: 401 }
+        { error: "Failed to fetch agent" },
+        { status: 500 },
       );
     }
 
-    // Get the agent
-    const agent = await getAgentAction(agent_id);
-    if (!agent) {
-      return NextResponse.json(
-        { error: "Agent not found" },
-        { status: 404 }
-      );
-    }
+    // Convert to Agent type
+    const agent = {
+      id: agentData.id,
+      name: agentData.name,
+      description: agentData.description ?? undefined,
+      icon: agentData.icon as any,
+      instructions: agentData.instructions as any,
+      userId: agentData.id,
+      visibility: (agentData.visibility || "private") as
+        | "public"
+        | "private"
+        | "readonly",
+      createdAt: new Date(agentData.created_at),
+      updatedAt: new Date(agentData.updated_at),
+    };
 
     // Build system prompt with agent instructions
     const systemPrompt = buildUserSystemPrompt(
       null, // No user context for API calls
       null, // No user preferences
-      agent
+      agent,
     );
 
     // Get model
@@ -47,7 +74,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Stream the response
-    const result = await streamText({
+    const result = streamText({
       model,
       system: systemPrompt,
       messages: [
@@ -58,12 +85,12 @@ export async function POST(request: NextRequest) {
       ],
     });
 
-    return result.toDataStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Agent chat error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

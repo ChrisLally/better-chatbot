@@ -1,0 +1,1 @@
+ALTER TABLE "chat_thread" ALTER COLUMN "user_id" DROP NOT NULL;
