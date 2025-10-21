@@ -43,19 +43,23 @@ export async function getAdminUsers(
 ): Promise<AdminUsersPaginated> {
   // Use our new permission system
   await requireUserListPermission("list users in admin panel");
-  await getSupabaseUser();
 
   try {
-    // Use our custom repository with improved search
-    const result = await pgAdminRepository.getUsers({
-      ...query,
-      limit: query?.limit ?? ADMIN_USER_LIST_LIMIT,
-      offset: query?.offset ?? 0,
-      sortBy: query?.sortBy ?? DEFAULT_SORT_BY,
-      sortDirection: query?.sortDirection ?? DEFAULT_SORT_DIRECTION,
-    });
+    // TODO: Implement proper search/sort/pagination with Supabase
+    // For now, use basic getUsers and do pagination in memory
+    const { getUsers } = await import("@/services/supabase/users-service");
+    const allUsers = await getUsers();
 
-    return result;
+    const limit = query?.limit ?? ADMIN_USER_LIST_LIMIT;
+    const offset = query?.offset ?? 0;
+
+    // Simple pagination
+    const paginatedUsers = allUsers.slice(offset, offset + limit);
+
+    return {
+      users: paginatedUsers,
+      total: allUsers.length,
+    };
   } catch (error) {
     console.error("Error getting admin users", error);
     throw error;

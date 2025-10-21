@@ -35,7 +35,7 @@ export function useAgents(options: UseAgentsOptions = {}) {
   });
 
   const { user } = useAuth();
-  const currentUserId = user?.id;
+  const _currentUserId = user?.id;
 
   // Client-side filtering for additional views
   const filterAgents = (filterFn: (agent: AgentSummary) => boolean) => {
@@ -44,11 +44,11 @@ export function useAgents(options: UseAgentsOptions = {}) {
 
   return {
     agents, // All returned agents based on server filters
-    myAgents: filterAgents((agent) => agent.userId === currentUserId),
-    sharedAgents: filterAgents((agent) => agent.userId !== currentUserId),
-    bookmarkedAgents: filterAgents(
-      (agent) => agent.userId !== currentUserId && agent.isBookmarked === true,
-    ),
+    // TODO: Implement proper agent ownership when workspaces are added
+    // For now, treat all agents as "mine" since agents are independent users
+    myAgents: filterAgents(() => true),
+    sharedAgents: filterAgents(() => false),
+    bookmarkedAgents: filterAgents((agent) => agent.isBookmarked === true),
     publicAgents: filterAgents((agent) => agent.visibility === "public"),
     readonlyAgents: filterAgents((agent) => agent.visibility === "readonly"),
     isLoading,
@@ -60,13 +60,12 @@ export function useAgents(options: UseAgentsOptions = {}) {
     ) => {
       switch (type) {
         case "mine":
-          return agents.some((agent) => agent.userId === currentUserId);
+          // TODO: Update when proper agent ownership is implemented
+          return agents.length > 0;
         case "shared":
-          return agents.some((agent) => agent.userId !== currentUserId);
+          return false; // No shared agents until ownership is implemented
         case "bookmarked":
-          return agents.some(
-            (agent) => agent.userId !== currentUserId && agent.isBookmarked,
-          );
+          return agents.some((agent) => agent.isBookmarked);
         case "public":
           return agents.some((agent) => agent.visibility === "public");
         case "readonly":

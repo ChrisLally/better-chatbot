@@ -282,7 +282,12 @@ export function UsersTable({
                     />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {format(new Date(user.createdAt), "MMM d, yyyy")}
+                    {user.createdAt || user.created_at
+                      ? format(
+                          new Date(user.createdAt || user.created_at),
+                          "MMM d, yyyy",
+                        )
+                      : "—"}
                   </TableCell>
                   <TableCell>
                     <ChevronRight
