@@ -50,6 +50,7 @@ import {
   rememberMcpServerCustomizationsAction,
 } from "./actions";
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
+import { getUserPreferences } from "@/lib/user/server";
 import { colorize } from "consola/utils";
 import { generateUUID } from "lib/utils";
 import { nanoBananaTool, openaiImageTool } from "lib/ai/tools/image";
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
       threadData = await createThread({
         id,
         title: "",
+        userId: user.id,
       });
     }
 
@@ -198,7 +200,8 @@ export async function POST(request: Request) {
           );
         }
 
-        const userPreferences = user.preferences || undefined;
+        const userPreferences =
+          (await getUserPreferences(user.id)) || undefined;
 
         const mcpServerCustomizations = await safe()
           .map(() => {

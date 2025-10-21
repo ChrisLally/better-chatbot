@@ -3,7 +3,6 @@ import { appStore } from "@/app/store";
 import useSWR, { SWRConfiguration, useSWRConfig } from "swr";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { AgentSummary } from "app-types/agent";
-import { useAuth } from "@/context/auth-context";
 import { getAgentsAction } from "@/app/actions/agent-actions";
 
 interface UseAgentsOptions extends SWRConfiguration {
@@ -33,9 +32,6 @@ export function useAgents(options: UseAgentsOptions = {}) {
     },
     ...swrOptions,
   });
-
-  const { user } = useAuth();
-  const _currentUserId = user?.id;
 
   // Client-side filtering for additional views
   const filterAgents = (filterFn: (agent: AgentSummary) => boolean) => {

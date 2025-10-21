@@ -479,8 +479,8 @@ export async function updateWorkflowStructure(
           kind: node.kind,
           name: node.name,
           description: node.description,
-          ui_config: node.ui_config,
-          node_config: node.node_config,
+          uiConfig: node.uiConfig,
+          nodeConfig: node.nodeConfig,
           updated_at: new Date().toISOString(),
         })),
       );
@@ -501,7 +501,7 @@ export async function updateWorkflowStructure(
           workflow_id: workflowId,
           source: edge.source,
           target: edge.target,
-          ui_config: edge.ui_config,
+          uiConfig: edge.uiConfig,
         })),
       );
 

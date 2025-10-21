@@ -6,7 +6,6 @@ import {
   requireAdminPermission,
   requireUserListPermission,
 } from "lib/auth/permissions";
-import pgAdminRepository from "lib/db/pg/repositories/admin-respository.pg";
 
 export const ADMIN_USER_LIST_LIMIT = 10;
 export const DEFAULT_SORT_BY = "createdAt";
@@ -53,12 +52,30 @@ export async function getAdminUsers(
     const limit = query?.limit ?? ADMIN_USER_LIST_LIMIT;
     const offset = query?.offset ?? 0;
 
+    // Transform users to AdminUserListItem format
+    const transformedUsers = allUsers.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerified: false, // TODO: Add email verification status
+      image: user.image,
+      role: null, // TODO: Add role information
+      banned: false, // TODO: Add ban status
+      banReason: null,
+      banExpires: null,
+      createdAt: new Date(user.created_at),
+      updatedAt: new Date(user.updated_at),
+      lastLogin: null, // TODO: Add last login tracking
+    }));
+
     // Simple pagination
-    const paginatedUsers = allUsers.slice(offset, offset + limit);
+    const paginatedUsers = transformedUsers.slice(offset, offset + limit);
 
     return {
       users: paginatedUsers,
       total: allUsers.length,
+      limit,
+      offset,
     };
   } catch (error) {
     console.error("Error getting admin users", error);

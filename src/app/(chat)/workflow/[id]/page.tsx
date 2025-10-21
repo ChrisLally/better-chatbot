@@ -3,7 +3,6 @@ import {
   convertDBNodeToUINode,
 } from "lib/ai/workflow/shared.workflow";
 import Workflow from "@/components/workflow/workflow";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { getWorkflowStructure } from "@/services/supabase/workflow-service";
 import { notFound } from "next/navigation";
 
@@ -14,7 +13,6 @@ export default async function WorkflowPage({
 }) {
   const { id } = await params;
   // Middleware already handles auth redirect
-  const _user = await getSupabaseUser();
 
   const workflow = await getWorkflowStructure(id);
   if (!workflow) {

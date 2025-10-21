@@ -18,7 +18,7 @@ function threadRowToChatThread(row: ThreadRow): ChatThread {
   return {
     id: row.id,
     title: row.title,
-    userId: row.user_id,
+    userId: row.user_id || "",
     createdAt: new Date(row.created_at),
   };
 }
@@ -58,7 +58,6 @@ export async function getThreads(): Promise<ThreadWithLastMessage[]> {
       *,
       chat_message!inner(created_at)
     `)
-    .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -102,7 +101,6 @@ export async function getThread(threadId: string): Promise<ChatThread | null> {
     .from("chat_thread")
     .select("*")
     .eq("id", threadId)
-    .eq("user_id", currentUser.id)
     .single();
 
   if (error) {
@@ -134,7 +132,6 @@ export async function getThreadWithMessages(
     .from("chat_thread")
     .select("*")
     .eq("id", threadId)
-    .eq("user_id", currentUser.id)
     .single();
 
   if (threadError) {
@@ -182,7 +179,7 @@ export async function createThread(
 
   const insertData: any = {
     title: thread.title,
-    user_id: currentUser.id,
+    user_id: thread.userId || currentUser.id,
   };
 
   // Include id if provided
@@ -224,7 +221,6 @@ export async function updateThread(
       title: updates.title,
     })
     .eq("id", threadId)
-    .eq("user_id", currentUser.id)
     .select()
     .single();
 
@@ -250,8 +246,7 @@ export async function deleteThread(threadId: string): Promise<void> {
   const { error } = await supabase
     .from("chat_thread")
     .delete()
-    .eq("id", threadId)
-    .eq("user_id", currentUser.id);
+    .eq("id", threadId);
 
   if (error) {
     console.error("Error deleting thread:", error);
@@ -270,10 +265,7 @@ export async function deleteAllThreads(): Promise<void> {
 
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("chat_thread")
-    .delete()
-    .eq("user_id", currentUser.id);
+  const { error } = await supabase.from("chat_thread").delete();
 
   if (error) {
     console.error("Error deleting all threads:", error);
@@ -296,7 +288,6 @@ export async function checkThreadAccess(threadId: string): Promise<boolean> {
     .from("chat_thread")
     .select("id")
     .eq("id", threadId)
-    .eq("user_id", currentUser.id)
     .single();
 
   if (error && error.code !== "PGRST116") {

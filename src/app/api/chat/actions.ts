@@ -109,7 +109,6 @@ export async function updateThreadAction(
   id: string,
   thread: Partial<Omit<ChatThread, "createdAt" | "updatedAt" | "userId">>,
 ) {
-  const _userId = await getUserId();
   await updateThread(id, thread);
 }
 
@@ -121,8 +120,16 @@ export async function deleteUnarchivedThreadsAction() {
   // TODO: Implement deleteUnarchivedThreads in chat-service
   const userId = await getUserId();
   const { archiveRepository } = await import("lib/db/repository");
-  const archivedItems = await archiveRepository.getArchiveItemsByUserId(userId);
-  const archivedThreadIds = archivedItems.map((item) => item.itemId);
+
+  // Get all archives for the user
+  const archives = await archiveRepository.getArchivesByUserId(userId);
+
+  // Get all archived items from all archives
+  const archivedThreadIds: string[] = [];
+  for (const archive of archives) {
+    const items = await archiveRepository.getArchiveItems(archive.id);
+    archivedThreadIds.push(...items.map((item) => item.itemId));
+  }
 
   const { getThreads } = await import("@/services/supabase/chat-service");
   const allThreads = await getThreads();

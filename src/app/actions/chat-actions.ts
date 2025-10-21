@@ -54,7 +54,7 @@ export async function getThreadWithMessagesAction(
  * Create a new thread
  */
 export async function createThreadAction(
-  thread: Omit<ChatThread, "id" | "createdAt">,
+  thread: Omit<ChatThread, "createdAt"> & { id?: string },
 ): Promise<ChatThread> {
   return createThreadService(thread);
 }

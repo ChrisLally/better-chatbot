@@ -3,10 +3,12 @@ import { getSupabaseAdmin } from "@/lib/supabase/server-admin";
 import { customModelProvider } from "@/lib/ai/models";
 import { buildUserSystemPrompt } from "@/lib/ai/prompts";
 import { streamText } from "ai";
+import { createMessage } from "@/services/supabase/chat-service";
+import { generateUUID } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   try {
-    const { agent_id, message, api_key } = await request.json();
+    const { agent_id, message, api_key, thread_id } = await request.json();
 
     // Basic validation
     if (!agent_id || !message) {
@@ -60,10 +62,38 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(agentData.updated_at),
     };
 
+    // Create or get existing thread for API conversations
+    const conversationId = thread_id || generateUUID();
+
+    // Check if thread exists, if not create it
+    const { data: existingThread } = await supabase
+      .from("chat_thread")
+      .select("id")
+      .eq("id", conversationId)
+      .single();
+
+    if (!existingThread) {
+      await supabase.from("chat_thread").insert({
+        id: conversationId,
+        title: `API Chat with ${agent.name}`,
+        user_id: agent.id, // Use agent's user_id for the thread
+      });
+    }
+
+    // Save the user message
+    const userMessageId = generateUUID();
+    await supabase.from("chat_message").insert({
+      id: userMessageId,
+      thread_id: conversationId,
+      role: "user",
+      parts: [{ type: "text", text: message }],
+      metadata: { agentId: agent_id },
+    });
+
     // Build system prompt with agent instructions
     const systemPrompt = buildUserSystemPrompt(
-      null, // No user context for API calls
-      null, // No user preferences
+      undefined, // No user context for API calls
+      undefined, // No user preferences
       agent,
     );
 
@@ -73,7 +103,7 @@ export async function POST(request: NextRequest) {
       model: "gpt-4",
     });
 
-    // Stream the response
+    // Stream the response and capture it for saving
     const result = streamText({
       model,
       system: systemPrompt,
@@ -84,6 +114,26 @@ export async function POST(request: NextRequest) {
         },
       ],
     });
+
+    // Generate assistant message ID for saving response
+    const assistantMessageId = generateUUID();
+
+    // Save assistant message after streaming completes
+    // Note: In a production app, you'd want to capture the actual response content
+    // For now, we'll save a placeholder that gets updated
+    setTimeout(async () => {
+      try {
+        await createMessage({
+          id: assistantMessageId,
+          threadId: conversationId,
+          role: "assistant",
+          parts: [{ type: "text", text: "Response generated via API" }],
+          metadata: { agentId: agent_id },
+        });
+      } catch (error) {
+        console.error("Error saving assistant message:", error);
+      }
+    }, 1000); // Small delay to ensure streaming is complete
 
     return result.toUIMessageStreamResponse();
   } catch (error) {

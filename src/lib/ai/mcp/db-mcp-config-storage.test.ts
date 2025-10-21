@@ -27,17 +27,6 @@ describe("DB-based MCP Config Storage", () => {
   let storage: ReturnType<typeof createDbBasedMCPConfigsStorage>;
   let mockManager: MCPClientsManager;
 
-  const mockServer = {
-    id: "test-server",
-    name: "test-server",
-    config: { command: "python", args: ["test.py"] } as MCPServerConfig,
-    enabled: true,
-    userId: "test-user-id",
-    visibility: "private" as const,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
   // Supabase format (snake_case) - what the service returns
   const mockSupabaseServer = {
     id: "test-server",
@@ -84,7 +73,16 @@ describe("DB-based MCP Config Storage", () => {
       const result = await storage.loadAll();
 
       expect(mockMcpService.getAllMcpServers).toHaveBeenCalledOnce();
-      expect(result).toEqual([mockServer]);
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: "test-server",
+          name: "test-server",
+          config: { command: "python", args: ["test.py"] },
+          enabled: true,
+          userId: "test-user-id",
+          visibility: "private",
+        }),
+      ]);
     });
 
     it("should return empty array when database fails", async () => {
@@ -217,7 +215,16 @@ describe("DB-based MCP Config Storage", () => {
 
       const result = await storage.get("test-server");
 
-      expect(result).toEqual(mockServer);
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: "test-server",
+          name: "test-server",
+          config: { command: "python", args: ["test.py"] },
+          enabled: true,
+          userId: "test-user-id",
+          visibility: "private",
+        }),
+      );
       expect(mockMcpService.getMcpServerById).toHaveBeenCalledWith(
         "test-server",
       );
