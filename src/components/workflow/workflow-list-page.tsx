@@ -36,8 +36,9 @@ import {
   updateWorkflowAction,
   deleteWorkflowAction,
   updateWorkflowStructureAction,
-  getWorkflowsAction,
 } from "@/app/actions/workflow-actions";
+import { getWorkflows } from "@/services/supabase/workflow-service";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 
 const createWithExample = async (exampleWorkflow: {
   workflow: Partial<DBWorkflow>;
@@ -91,7 +92,13 @@ export default function WorkflowListPage({
 
   const { data: workflows, isLoading } = useSWR<WorkflowSummary[]>(
     "workflows",
-    () => getWorkflowsAction(),
+    async () => {
+      const user = await getSupabaseUser();
+      if (!user) {
+        return [];
+      }
+      return await getWorkflows(user.id);
+    },
     {
       fallbackData: [],
     },

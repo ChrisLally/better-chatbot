@@ -4,34 +4,12 @@ import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import {
   createAgent,
   getAgent,
-  selectAgents,
   updateAgent,
   deleteAgent,
   checkAgentAccess,
 } from "@/services/supabase/users-service";
 import { revalidateTag, revalidatePath } from "next/cache";
-import { Agent, AgentSummary } from "@/types/agent";
-
-/**
- * Server action to get a list of agents with filters
- */
-export async function getAgentsAction(
-  filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["mine", "shared"],
-  limit: number = 50,
-): Promise<AgentSummary[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
-  try {
-    const agents = await selectAgents(currentUser.id, filters, limit);
-    return agents;
-  } catch (error) {
-    console.error("Error fetching agents:", error);
-    throw new Error("Failed to fetch agents");
-  }
-}
+import { Agent } from "@/types/agent";
 
 /**
  * Server action to get a single agent by ID

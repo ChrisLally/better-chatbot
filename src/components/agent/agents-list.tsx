@@ -8,9 +8,8 @@ import { Plus, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { BackgroundPaths } from "ui/background-paths";
 import { useBookmark } from "@/hooks/queries/use-bookmark";
-import { useMutateAgents } from "@/hooks/queries/use-agents";
+import { useMutateAgents, useAgents } from "@/hooks/queries/use-agents";
 import { toast } from "sonner";
-import useSWR from "swr";
 import { Visibility } from "@/components/shareable-actions";
 import { ShareableCard } from "@/components/shareable-card";
 import { notify } from "lib/notify";
@@ -18,7 +17,6 @@ import { useState } from "react";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { canCreateAgent } from "lib/auth/client-permissions";
 import {
-  getAgentsAction,
   updateAgentAction,
   deleteAgentAction,
 } from "@/app/actions/agent-actions";
@@ -45,13 +43,11 @@ export function AgentsList({
     string | null
   >(null);
 
-  const { data: allAgents } = useSWR(
-    "agents-mine,shared-50",
-    () => getAgentsAction(["mine", "shared"], 50),
-    {
-      fallbackData: [...initialMyAgents, ...initialSharedAgents],
-    },
-  );
+  const { agents: allAgents } = useAgents({
+    filters: ["mine", "shared"],
+    limit: 50,
+    fallbackData: [...initialMyAgents, ...initialSharedAgents],
+  });
 
   const myAgents =
     allAgents?.filter((agent: AgentSummary) => agent.userId === userId) ||

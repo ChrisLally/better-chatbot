@@ -2,16 +2,14 @@
 
 import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import {
-  getExecutableWorkflows,
   createWorkflow,
   updateWorkflow,
   deleteWorkflow,
-  getWorkflow,
-  getWorkflows,
   updateWorkflowStructure,
   executeWorkflow,
 } from "@/services/supabase/workflow-service";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -49,70 +47,6 @@ const ExecuteWorkflowSchema = z.object({
 // ============================================================================
 
 /**
- * Get workflows that can be executed as tools
- */
-export async function selectExecuteAbilityWorkflowsAction() {
-  try {
-    const user = await getSupabaseUser();
-    if (!user) {
-      return [];
-    }
-
-    return await getExecutableWorkflows(user.id);
-  } catch (error) {
-    console.error("Error fetching executable workflows:", error);
-    return [];
-  }
-}
-
-/**
- * Get all workflows for the current user
- */
-export async function getWorkflowsAction(filters?: {
-  visibility?: ("public" | "private" | "readonly")[];
-  ownership?: ("mine" | "shared")[];
-  search?: string;
-  limit?: number;
-}) {
-  try {
-    const user = await getSupabaseUser();
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
-    return await getWorkflows(user.id, filters);
-  } catch (error) {
-    console.error("Error fetching workflows:", error);
-    throw error;
-  }
-}
-
-/**
- * Get a single workflow by ID
- */
-export async function getWorkflowAction(workflowId: string) {
-  try {
-    const user = await getSupabaseUser();
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
-    // Allow any authenticated user to view workflows (until workspaces are added)
-    // TODO: Add access control when implementing workspaces/organizations
-
-    const workflow = await getWorkflow(workflowId);
-    if (!workflow) {
-      throw new Error("Workflow not found");
-    }
-
-    return workflow;
-  } catch (error) {
-    console.error("Error fetching workflow:", error);
-    throw error;
-  }
-}
-
-/**
  * Create a new workflow
  */
 export async function createWorkflowAction(
@@ -127,13 +61,15 @@ export async function createWorkflowAction(
     // Validate data
     const validatedData = CreateWorkflowSchema.parse(data);
 
-    return await createWorkflow({
+    const newWorkflow = await createWorkflow({
       name: validatedData.name,
       description: validatedData.description,
       icon: validatedData.icon,
       visibility: validatedData.visibility,
       isPublished: validatedData.isPublished,
     });
+    revalidateTag("workflows");
+    return newWorkflow;
   } catch (error) {
     console.error("Error creating workflow:", error);
     throw error;
@@ -159,7 +95,10 @@ export async function updateWorkflowAction(
     // Validate updates
     const validatedUpdates = UpdateWorkflowSchema.parse(updates);
 
-    return await updateWorkflow(workflowId, validatedUpdates);
+    const updatedWorkflow = await updateWorkflow(workflowId, validatedUpdates);
+    revalidateTag("workflows");
+    revalidateTag(`workflow-${workflowId}`);
+    return updatedWorkflow;
   } catch (error) {
     console.error("Error updating workflow:", error);
     throw error;
@@ -180,6 +119,8 @@ export async function deleteWorkflowAction(workflowId: string) {
     // TODO: Add access control when implementing workspaces/organizations
 
     await deleteWorkflow(workflowId);
+    revalidateTag("workflows");
+    revalidateTag(`workflow-${workflowId}`);
     return { success: true };
   } catch (error) {
     console.error("Error deleting workflow:", error);
@@ -207,6 +148,7 @@ export async function updateWorkflowStructureAction(
     const validatedStructure = UpdateWorkflowStructureSchema.parse(structure);
 
     await updateWorkflowStructure(workflowId, validatedStructure);
+    revalidateTag(`workflow-structure-${workflowId}`);
     return { success: true };
   } catch (error) {
     console.error("Error updating workflow structure:", error);

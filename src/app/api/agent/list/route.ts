@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAgentsAction } from "@/app/actions/agent-actions";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
+import { selectAgents } from "@/services/supabase/users-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,34 +8,36 @@ export async function POST(request: NextRequest) {
 
     // API key authentication - hardcoded for now
     if (api_key !== "temp_api_key") {
-      return NextResponse.json(
-        { error: "Invalid API key" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
+    }
+
+    // Get current user for selectAgents
+    const currentUser = await getSupabaseUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get all agents
-    const agents = await getAgentsAction(["all"], 100);
+    const agents = await selectAgents(currentUser.id, ["all"], 100);
 
     // Return simplified agent list with just the info needed for API calls
-    const agentList = agents.map(agent => ({
+    const agentList = agents.map((agent) => ({
       id: agent.id,
       name: agent.name,
       description: agent.description,
-      visibility: agent.visibility
+      visibility: agent.visibility,
     }));
 
     return NextResponse.json({
       success: true,
       agents: agentList,
-      count: agentList.length
+      count: agentList.length,
     });
-
   } catch (error) {
     console.error("Agent list error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -43,38 +46,41 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // For GET requests, check API key in query params or headers
-    const apiKey = request.nextUrl.searchParams.get('api_key') || 
-                   request.headers.get('x-api-key');
+    const apiKey =
+      request.nextUrl.searchParams.get("api_key") ||
+      request.headers.get("x-api-key");
 
     if (apiKey !== "temp_api_key") {
-      return NextResponse.json(
-        { error: "Invalid API key" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
+    }
+
+    // Get current user for selectAgents
+    const currentUser = await getSupabaseUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get all agents
-    const agents = await getAgentsAction(["all"], 100);
+    const agents = await selectAgents(currentUser.id, ["all"], 100);
 
     // Return simplified agent list
-    const agentList = agents.map(agent => ({
+    const agentList = agents.map((agent) => ({
       id: agent.id,
       name: agent.name,
       description: agent.description,
-      visibility: agent.visibility
+      visibility: agent.visibility,
     }));
 
     return NextResponse.json({
       success: true,
       agents: agentList,
-      count: agentList.length
+      count: agentList.length,
     });
-
   } catch (error) {
     console.error("Agent list error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

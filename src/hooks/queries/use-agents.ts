@@ -3,7 +3,8 @@ import { appStore } from "@/app/store";
 import useSWR, { SWRConfiguration, useSWRConfig } from "swr";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { AgentSummary } from "app-types/agent";
-import { getAgentsAction } from "@/app/actions/agent-actions";
+import { selectAgents } from "@/services/supabase/users-service";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 
 interface UseAgentsOptions extends SWRConfiguration {
   filters?: ("all" | "mine" | "shared" | "bookmarked")[];
@@ -21,17 +22,27 @@ export function useAgents(options: UseAgentsOptions = {}) {
     error,
     isLoading,
     mutate,
-  } = useSWR<AgentSummary[]>(cacheKey, () => getAgentsAction(filters, limit), {
-    errorRetryCount: 0,
-    revalidateOnFocus: false,
-    fallbackData: [],
-    onError: handleErrorWithToast,
-    onSuccess: (data) => {
-      // Update Zustand store for chat mentions
-      appStore.setState({ agentList: data });
+  } = useSWR<AgentSummary[]>(
+    cacheKey,
+    async () => {
+      const user = await getSupabaseUser();
+      if (!user) {
+        return [];
+      }
+      return await selectAgents(user.id, filters, limit);
     },
-    ...swrOptions,
-  });
+    {
+      errorRetryCount: 0,
+      revalidateOnFocus: false,
+      fallbackData: [],
+      onError: handleErrorWithToast,
+      onSuccess: (data) => {
+        // Update Zustand store for chat mentions
+        appStore.setState({ agentList: data });
+      },
+      ...swrOptions,
+    },
+  );
 
   // Client-side filtering for additional views
   const filterAgents = (filterFn: (agent: AgentSummary) => boolean) => {
