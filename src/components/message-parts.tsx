@@ -760,7 +760,7 @@ export const ToolMessagePart = memo(
     const toolName = useMemo(() => getToolName(part), [part.type]);
 
     const isCompleted = useMemo(() => {
-      return state.startsWith("output");
+      return state && state.startsWith("output");
     }, [state]);
 
     const [expanded, setExpanded] = useState(false);

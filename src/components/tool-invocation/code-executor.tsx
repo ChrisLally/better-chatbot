@@ -91,7 +91,7 @@ export const CodeExecutor = memo(function CodeExecutor({
     [onResult],
   );
   const isRunning = useMemo(() => {
-    return isExecuting || part.state.startsWith("input");
+    return isExecuting || (part.state && part.state.startsWith("input"));
   }, [isExecuting, part.state]);
 
   const scrollToCode = useCallback(() => {
@@ -102,7 +102,7 @@ export const CodeExecutor = memo(function CodeExecutor({
   }, []);
 
   const result = useMemo(() => {
-    if (part.state.startsWith("input")) return null;
+    if (part.state && part.state.startsWith("input")) return null;
     return part.output as CodeRunnerResult;
   }, [part]);
 
@@ -244,7 +244,7 @@ export const CodeExecutor = memo(function CodeExecutor({
     if (isRunning) {
       const closeKey = setInterval(scrollToCode, 300);
       return () => clearInterval(closeKey);
-    } else if (part.state.startsWith("output") && isRun.current) {
+    } else if (part.state && part.state.startsWith("output") && isRun.current) {
       scrollToCode();
     }
   }, [isRunning]);
@@ -257,7 +257,7 @@ export const CodeExecutor = memo(function CodeExecutor({
             {header}
             <div className="flex-1" />
 
-            {part.state.startsWith("output") && (
+            {part.state && part.state.startsWith("output") && (
               <>
                 <div
                   className="flex items-center gap-1 text-[10px] text-muted-foreground px-2 py-1 transition-all rounded-sm cursor-pointer hover:bg-input hover:text-foreground font-semibold"

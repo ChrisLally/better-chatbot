@@ -222,7 +222,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     const lastPart = lastMessage.parts.at(-1);
     if (!lastPart) return false;
     if (!isToolUIPart(lastPart)) return false;
-    if (lastPart.state.startsWith("output")) return false;
+    if (!lastPart.state || lastPart.state.startsWith("output")) return false;
     return true;
   }, [status, messages]);
 

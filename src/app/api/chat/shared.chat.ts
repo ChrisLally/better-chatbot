@@ -467,7 +467,7 @@ export const convertToSavePart = <T extends UIMessagePart<any, any>>(
     exclude(part as any, ["providerMetadata", "callProviderMetadata"]) as T,
   )
     .map((v) => {
-      if (isToolUIPart(v) && v.state.startsWith("output")) {
+      if (isToolUIPart(v) && v.state && v.state.startsWith("output")) {
         if (VercelAIWorkflowToolStreamingResultTag.isMaybe(v.output)) {
           return {
             ...v,
