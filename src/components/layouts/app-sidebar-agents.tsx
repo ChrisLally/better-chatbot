@@ -18,7 +18,7 @@ import { useMounted } from "@/hooks/use-mounted";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useAgents } from "@/hooks/queries/use-agents";
 import { Avatar, AvatarFallback, AvatarImage } from "ui/avatar";
 import { AgentDropdown } from "../agent/agent-dropdown";

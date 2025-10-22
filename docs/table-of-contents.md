@@ -7,24 +7,21 @@
 ## Architecture & Layers
 
 ### Presentation Layer (Components & Hooks)
-- **`PATTERNS/hooks-rules.md`** - Hook patterns, SWR usage, data fetching, real-time subscriptions
-- **`PATTERNS/server-actions-rules.md`** - Server Actions, mutations, cache revalidation, when to use vs direct service imports
+- [**Hooks Rules**](docs/PATTERNS/hooks-rules) - Hook patterns, SWR usage, data fetching, real-time subscriptions
+- [**Server Actions Rules**](docs/PATTERNS/server-actions-rules) - Server Actions, mutations, cache revalidation, when to use vs direct service imports
 
 ### Orchestration Layer (Server Actions)
-- **`PATTERNS/server-actions-rules.md`** - Complete Server Action patterns and cache revalidation strategy
+- [**Server Actions Rules**](docs/PATTERNS/server-actions-rules) - Complete Server Action patterns and cache revalidation strategy
 
 ### Service Layer (Business Logic & Data Access)
-- **`PATTERNS/service-rules.md`** - Universal service patterns, error handling, typing, architecture
-- **`PATTERNS/services/supabase-rules.md`** - Supabase queries, auth clients, RLS policies, type safety
-- **`PATTERNS/services/ai-rules.md`** - AI orchestration, step lifecycle, LLM integration (if separate)
-- **`PATTERNS/services/langfuse-rules.md`** - Langfuse tracing patterns (if separate)
+- [**Service Rules**](docs/PATTERNS/service-rules) - Universal service patterns, error handling, typing, architecture
+- [**Supabase Service Rules**](docs/PATTERNS/services/supabase-service-rules) - Supabase queries, auth clients, RLS policies, type safety
 
 ### Data & Types Layer
-- **`PATTERNS/types-rules.md`** - TypeScript type conventions and patterns
-- **`lib/supabase/_SCHEMA_RULES.md`** - Database schema design, naming, constraints
-- **`lib/supabase/_ARTIFACT_RULES.md`** - Artifact entity design, storage, mentions
-- **`lib/supabase/_json/_FUNCTION_TRIGGER_RULES.md`** - PL/pgSQL functions and triggers
-- **`lib/supabase/_tools/_MCP_TOOL_RULES.md`** - Tool development, context, permissions
+- [**Types Rules**](docs/PATTERNS/types-rules) - TypeScript type conventions and patterns
+- [**Artifact Rules**](docs/PATTERNS/artifact-rules) - Artifact entity design, storage, mentions
+- [**MCP Tool Rules**](docs/PATTERNS/mcp-tool-rules) - Tool development, context, permissions
+- [**Schema Rules**](docs/PATTERNS/schema-rules) - Database schema design, naming, constraints
 
 ---
 
@@ -32,23 +29,19 @@
 
 | Topic | File | Section |
 |-------|------|---------|
-| **Component Architecture** | `app/(workspace)/_WORKSPACE_RULES.md` | - |
-| **Data Fetching** | `PATTERNS/hooks-rules.md` | 2 (SWR Integration) |
-| **Cache Management** | `PATTERNS/hooks-rules.md` | 3, 5 |
-| **Mutations & Server Actions** | `PATTERNS/server-actions-rules.md` | All |
-| **Cache Revalidation** | `PATTERNS/server-actions-rules.md` | Cache Revalidation Patterns |
-| **Read vs Write Operations** | `PATTERNS/hooks-rules.md` | 5 (Direct Service Imports) |
-| **Real-time Updates** | `PATTERNS/hooks-rules.md` | 7 (Real-time Subscriptions) |
-| **Service Layer Design** | `PATTERNS/service-rules.md` | All |
-| **Service Cache Patterns** | `PATTERNS/service-rules.md` | 14 (Cache Revalidation Tags) |
-| **Supabase Queries** | `PATTERNS/services/supabase-rules.md` | All |
-| **AI Orchestration** | `PATTERNS/services/ai-rules.md` | - |
-| **Prompt Engineering** | `PATTERNS/services/langfuse-rules.md` | - |
-| **TypeScript Types** | `PATTERNS/types-rules.md` | - |
-| **Database Schema** | `lib/supabase/_SCHEMA_RULES.md` | - |
-| **Artifacts** | `lib/supabase/_ARTIFACT_RULES.md` | - |
-| **Triggers & Functions** | `lib/supabase/_json/_FUNCTION_TRIGGER_RULES.md` | - |
-| **MCP Tools** | `lib/supabase/_tools/_MCP_TOOL_RULES.md` | - |
+| **Data Fetching** | [Hooks Rules](docs/PATTERNS/hooks-rules) | 2 (SWR Integration) |
+| **Cache Management** | [Hooks Rules](docs/PATTERNS/hooks-rules) | 3, 5 |
+| **Mutations & Server Actions** | [Server Actions Rules](docs/PATTERNS/server-actions-rules) | All |
+| **Cache Revalidation** | [Server Actions Rules](docs/PATTERNS/server-actions-rules) | Cache Revalidation Patterns |
+| **Read vs Write Operations** | [Hooks Rules](docs/PATTERNS/hooks-rules) | 5 (Direct Service Imports) |
+| **Real-time Updates** | [Hooks Rules](docs/PATTERNS/hooks-rules) | 7 (Real-time Subscriptions) |
+| **Service Layer Design** | [Service Rules](docs/PATTERNS/service-rules) | All |
+| **Service Cache Patterns** | [Service Rules](docs/PATTERNS/service-rules) | 14 (Cache Revalidation Tags) |
+| **Supabase Queries** | [Supabase Service Rules](docs/PATTERNS/services/supabase-service-rules) | All |
+| **TypeScript Types** | [Types Rules](docs/PATTERNS/types-rules) | - |
+| **Database Schema** | [Schema Rules](docs/PATTERNS/schema-rules) | - |
+| **Artifacts** | [Artifact Rules](docs/PATTERNS/artifact-rules) | - |
+| **MCP Tools** | [MCP Tool Rules](docs/PATTERNS/mcp-tool-rules) | - |
 
 ---
 
@@ -56,9 +49,8 @@
 
 | Document | Purpose |
 |----------|---------|
-| **`TASKS/refactoring/update-server-actions.md`** | Server actions refactoring - Phase 1-4 complete ✅ |
-| **`TASKS/refactoring/remove-server-only-from-services.md`** | Server-only imports refactoring - Phase 1-5 complete ✅ |
-| **`PATTERNS/_RULES.md`** | Service-specific rules (AI, Supabase, etc.) |
+| [**Update Server Actions**](docs/TASKS/refactoring/update-server-actions) | Server actions refactoring - Phase 1-4 complete ✅ |
+| [**Remove Server-Only from Services**](docs/TASKS/refactoring/remove-server-only-from-services) | Server-only imports refactoring - Phase 1-5 complete ✅ |
 
 ---
 
@@ -185,7 +177,7 @@ export function useCreateAgent() {
 - Complex architectural decisions belong in separate design docs
 
 ### Cross-Referencing
-Use the pattern: `See @/path/to/file.md Section X` for internal references
+Use markdown links with the pattern: `[Link Text](docs/CATEGORY/filename)` for internal doc links. The docs viewer will automatically navigate to the correct page.
 
 ---
 
