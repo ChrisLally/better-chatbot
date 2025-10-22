@@ -284,13 +284,19 @@ export class MCPClientsManager {
         return res;
       })
       .ifFail((err) => {
+        const errorMessage = errorToString(err);
         return {
           isError: true,
           error: {
-            message: errorToString(err),
+            message: errorMessage,
             name: err?.name || "ERROR",
           },
-          content: [],
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
         };
       })
       .unwrap();

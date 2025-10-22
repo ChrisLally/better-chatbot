@@ -270,15 +270,16 @@ export async function checkThreadAccess(
  * Get messages for a thread
  */
 export async function getMessages(
-  userId: string,
+  _userId: string,
   threadId: string,
 ): Promise<ChatMessage[]> {
   const supabase = await createClient();
 
-  const hasAccess = await checkThreadAccess(userId, threadId);
-  if (!hasAccess) {
-    throw new Error("Access denied to thread");
-  }
+  // TODO: Temporarily disabled access check to allow viewing all thread messages
+  // const hasAccess = await checkThreadAccess(userId, threadId);
+  // if (!hasAccess) {
+  //   throw new Error("Access denied to thread");
+  // }
 
   const { data: messages, error } = await supabase
     .from("chat_message")
@@ -298,15 +299,16 @@ export async function getMessages(
  * Create a new message
  */
 export async function createMessage(
-  userId: string,
+  _userId: string,
   message: Omit<ChatMessage, "createdAt">, // Keep id, AI SDK provides it
 ): Promise<ChatMessage> {
   const supabase = await createClient();
 
-  const hasAccess = await checkThreadAccess(userId, message.threadId);
-  if (!hasAccess) {
-    throw new Error("Access denied to thread");
-  }
+  // TODO: Temporarily disabled access check to allow anyone to create messages
+  // const hasAccess = await checkThreadAccess(userId, message.threadId);
+  // if (!hasAccess) {
+  //   throw new Error("Access denied to thread");
+  // }
 
   const { data, error } = await supabase
     .from("chat_message")

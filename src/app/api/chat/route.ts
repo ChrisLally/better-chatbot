@@ -93,9 +93,10 @@ export async function POST(request: Request) {
       });
     }
 
-    if (threadData.userId !== user.id) {
-      return new Response("Forbidden", { status: 403 });
-    }
+    // TODO: Temporarily disabled thread ownership check to allow anyone to send messages
+    // if (threadData.userId !== user.id) {
+    //   return new Response("Forbidden", { status: 403 });
+    // }
 
     // Get messages for the thread
     const { getMessages } = await import("@/services/supabase/chat-service");

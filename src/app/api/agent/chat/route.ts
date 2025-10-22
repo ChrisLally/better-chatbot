@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server-admin";
 import { customModelProvider } from "@/lib/ai/models";
 import { buildUserSystemPrompt } from "@/lib/ai/prompts";
-import { streamText } from "ai";
-import { createMessage } from "@/services/supabase/chat-service";
+import { generateText } from "ai";
+import {
+  createMessage,
+  getMessages as getThreadMessages,
+} from "@/services/supabase/chat-service";
 import { generateUUID } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
@@ -62,17 +65,19 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(agentData.updated_at),
     };
 
-    // Create or get existing thread for API conversations
+    // Use existing thread or create a new one
     const conversationId = thread_id || generateUUID();
+    let isNewThread = false;
 
     // Check if thread exists, if not create it
     const { data: existingThread } = await supabase
       .from("chat_thread")
-      .select("id")
+      .select("id, title")
       .eq("id", conversationId)
       .single();
 
     if (!existingThread) {
+      isNewThread = true;
       await supabase.from("chat_thread").insert({
         id: conversationId,
         title: `API Chat with ${agent.name}`,
@@ -90,52 +95,93 @@ export async function POST(request: NextRequest) {
       metadata: { agentId: agent_id },
     });
 
-    // Build system prompt with agent instructions
-    const systemPrompt = buildUserSystemPrompt(
-      undefined, // No user context for API calls
-      undefined, // No user preferences
-      agent,
-    );
+    // Trigger agent response generation in the background
+    // Don't await - let it run asynchronously
+    (async () => {
+      try {
+        // Build system prompt with agent instructions
+        const systemPrompt = buildUserSystemPrompt(
+          undefined, // No user context for API calls
+          undefined, // No user preferences
+          agent,
+        );
 
-    // Get model
-    const model = customModelProvider.getModel({
-      provider: "openai",
-      model: "gpt-4",
-    });
+        // Get model
+        const model = customModelProvider.getModel({
+          provider: "openai",
+          model: "gpt-4",
+        });
 
-    // Stream the response and capture it for saving
-    const result = streamText({
-      model,
-      system: systemPrompt,
-      messages: [
-        {
+        // Generate assistant message ID for saving response
+        const assistantMessageId = generateUUID();
+
+        // Build conversation messages
+        let conversationMessages: Array<{
+          role: "user" | "assistant";
+          content: string;
+        }> = [];
+
+        // If this is a follow-up to an existing thread, fetch conversation history
+        if (!isNewThread) {
+          const previousMessages = await getThreadMessages(
+            agent.id,
+            conversationId,
+          );
+          conversationMessages = previousMessages.map((msg) => ({
+            role: msg.role as "user" | "assistant",
+            content: msg.parts
+              .filter((part) => part.type === "text")
+              .map((part) => (part as any).text)
+              .join(""),
+          }));
+        }
+
+        // Add the current user message (which was already saved)
+        conversationMessages.push({
           role: "user",
           content: message,
-        },
-      ],
-    });
+        });
 
-    // Generate assistant message ID for saving response
-    const assistantMessageId = generateUUID();
+        // Generate the response and save it
+        const { text } = await generateText({
+          model,
+          system: systemPrompt,
+          messages: conversationMessages,
+        });
 
-    // Save assistant message after streaming completes
-    // Note: In a production app, you'd want to capture the actual response content
-    // For now, we'll save a placeholder that gets updated
-    setTimeout(async () => {
-      try {
+        // Save the assistant response
         await createMessage(agent.id, {
           id: assistantMessageId,
           threadId: conversationId,
           role: "assistant",
-          parts: [{ type: "text", text: "Response generated via API" }],
+          parts: [{ type: "text", text }],
           metadata: { agentId: agent_id },
         });
       } catch (error) {
-        console.error("Error saving assistant message:", error);
+        console.error("Error generating agent response:", error);
       }
-    }, 1000); // Small delay to ensure streaming is complete
+    })();
 
-    return result.toUIMessageStreamResponse();
+    // Return immediately with agent and thread details
+    return NextResponse.json({
+      success: true,
+      isNewThread,
+      agent: {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        icon: agent.icon,
+      },
+      thread: {
+        id: conversationId,
+        title: existingThread?.title || `API Chat with ${agent.name}`,
+      },
+      message: {
+        id: userMessageId,
+        role: "user",
+        text: message,
+      },
+    });
   } catch (error) {
     console.error("Agent chat error:", error);
     return NextResponse.json(

@@ -17,6 +17,9 @@
 - [**Service Rules**](docs/PATTERNS/service-rules) - Universal service patterns, error handling, typing, architecture
 - [**Supabase Service Rules**](docs/PATTERNS/services/supabase-service-rules) - Supabase queries, auth clients, RLS policies, type safety
 
+### API Layer (External Access)
+- [**Agent API Routes**](docs/PATTERNS/api-agent-routes) - External API endpoints for agent listing and chat operations
+
 ### Data & Types Layer
 - [**Types Rules**](docs/PATTERNS/types-rules) - TypeScript type conventions and patterns
 - [**Artifact Rules**](docs/PATTERNS/artifact-rules) - Artifact entity design, storage, mentions
@@ -38,6 +41,7 @@
 | **Service Layer Design** | [Service Rules](docs/PATTERNS/service-rules) | All |
 | **Service Cache Patterns** | [Service Rules](docs/PATTERNS/service-rules) | 14 (Cache Revalidation Tags) |
 | **Supabase Queries** | [Supabase Service Rules](docs/PATTERNS/services/supabase-service-rules) | All |
+| **Agent API Endpoints** | [Agent API Routes](docs/PATTERNS/api-agent-routes) | All |
 | **TypeScript Types** | [Types Rules](docs/PATTERNS/types-rules) | - |
 | **Database Schema** | [Schema Rules](docs/PATTERNS/schema-rules) | - |
 | **Artifacts** | [Artifact Rules](docs/PATTERNS/artifact-rules) | - |

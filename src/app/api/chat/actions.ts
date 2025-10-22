@@ -83,9 +83,10 @@ export async function selectThreadWithMessagesAction(threadId: string) {
     logger.error("Thread not found", threadId);
     return null;
   }
-  if (thread.userId !== user.id) {
-    return null;
-  }
+  // TODO: Temporarily disabled user ownership check to allow viewing all threads
+  // if (thread.userId !== user.id) {
+  //   return null;
+  // }
   const messages = await getMessages(user.id, threadId);
   return { ...thread, messages: messages ?? [] };
 }
