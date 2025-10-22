@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server-admin";
 import { customModelProvider } from "@/lib/ai/models";
 import { buildUserSystemPrompt } from "@/lib/ai/prompts";
-import { generateText, stepCountIs, Tool } from "ai";
+import { streamText, stepCountIs, Tool } from "ai";
 import {
   createMessage,
   getMessages as getThreadMessages,
@@ -153,6 +153,10 @@ export async function POST(request: NextRequest) {
         // Load tools based on agent mentions
         const mentions = agent.instructions?.mentions || [];
 
+        console.log(
+          `[Agent ${agent.id}] Starting tool loading. Mentions: ${JSON.stringify(mentions)}`,
+        );
+
         // Load MCP tools
         const MCP_TOOLS = await safe()
           .map(() =>
@@ -164,7 +168,7 @@ export async function POST(request: NextRequest) {
           .orElse({});
 
         console.log(
-          `[Agent ${agent.id}] Loaded MCP tools: ${Object.keys(MCP_TOOLS).length}`,
+          `[Agent ${agent.id}] Loaded MCP tools: ${Object.keys(MCP_TOOLS).length}. Tool names: ${Object.keys(MCP_TOOLS).join(", ")}`,
         );
 
         // Load workflow tools (skip dataStream since not available in this context)
@@ -203,11 +207,12 @@ export async function POST(request: NextRequest) {
         };
 
         console.log(
-          `[Agent ${agent.id}] Total tools available: ${Object.keys(tools).length}`,
+          `[Agent ${agent.id}] Total tools available: ${Object.keys(tools).length}. All tools: ${Object.keys(tools).join(", ")}`,
         );
 
         // Generate the response with tool support
-        const result = await generateText({
+        // Key: We must use toUIMessageStream and iterate through it to get tool execution
+        const result = streamText({
           model,
           system: systemPrompt,
           messages: conversationMessages,
@@ -217,43 +222,90 @@ export async function POST(request: NextRequest) {
           maxRetries: 2,
         });
 
-        // Extract assistant message with all parts (text + tool calls + tool results)
-        const assistantMessage = result.response.messages.find(
+        console.log(
+          `[Agent ${agent.id}] Starting to consume stream with ${Object.keys(tools).length} tools available`,
+        );
+
+        // Convert to UI message stream - this is what triggers tool execution
+        const uiStream = result.toUIMessageStream();
+
+        // Iterate through the stream to ensure full processing and tool execution
+        let eventCount = 0;
+        try {
+          for await (const _event of uiStream) {
+            eventCount++;
+            // Just consume the stream - the iteration itself triggers tool execution
+          }
+        } catch (streamError) {
+          console.error(
+            `[Agent ${agent.id}] Error during stream iteration:`,
+            streamError,
+          );
+        }
+
+        console.log(
+          `[Agent ${agent.id}] Stream iteration complete. Processed ${eventCount} events`,
+        );
+
+        // Now get the full response after stream is done
+        const response = await result.response;
+
+        console.log(
+          `[Agent ${agent.id}] Response available with ${response.messages?.length || 0} messages`,
+        );
+
+        // Extract the assistant message
+        const responseMessage = response.messages?.find(
           (m) => m.role === "assistant",
         );
 
-        if (!assistantMessage) {
+        if (!responseMessage) {
           console.error(`[Agent ${agent.id}] No assistant message in response`);
-          return;
+        } else {
+          console.log(
+            `[Agent ${agent.id}] Got assistant message, content is ${typeof responseMessage.content}`,
+          );
+
+          // Get the parts
+          const finalParts = Array.isArray(responseMessage.content)
+            ? (responseMessage.content as any[]).map(convertToSavePart)
+            : [{ type: "text" as const, text: responseMessage.content }];
+
+          console.log(
+            `[Agent ${agent.id}] Final parts (${finalParts.length}): ${finalParts.map((p: any) => p.type).join(", ")}`,
+          );
+
+          // Save the message
+          const toolChoice: "auto" | "none" | "manual" | undefined =
+            Object.keys(tools).length > 0 ? "auto" : "none";
+
+          const usage = await result.usage;
+          const metadata: ChatMetadata = {
+            agentId: agent_id,
+            toolChoice,
+            toolCount: Object.keys(tools).length,
+            usage: usage
+              ? {
+                  inputTokens: usage.inputTokens || 0,
+                  outputTokens: usage.outputTokens || 0,
+                  totalTokens: ((usage.inputTokens || 0) +
+                    (usage.outputTokens || 0)) as never,
+                }
+              : undefined,
+          };
+
+          await createMessage(agent.id, {
+            id: assistantMessageId,
+            threadId: conversationId,
+            role: "assistant",
+            parts: finalParts,
+            metadata,
+          });
+
+          console.log(
+            `[Agent ${agent.id}] Saved message with ${finalParts.length} parts`,
+          );
         }
-
-        // Handle both string and array content formats
-        const messageParts = Array.isArray(assistantMessage.content)
-          ? (assistantMessage.content as any[]).map(convertToSavePart)
-          : [{ type: "text" as const, text: assistantMessage.content }];
-
-        // Save the assistant response with complete parts (including tool execution)
-        const toolChoice: "auto" | "none" | "manual" | undefined =
-          Object.keys(tools).length > 0 ? "auto" : "none";
-
-        const metadata: ChatMetadata = {
-          agentId: agent_id,
-          toolChoice,
-          toolCount: Object.keys(tools).length,
-          usage: result.usage,
-        };
-
-        await createMessage(agent.id, {
-          id: assistantMessageId,
-          threadId: conversationId,
-          role: "assistant",
-          parts: messageParts,
-          metadata,
-        });
-
-        console.log(
-          `[Agent ${agent.id}] Saved assistant message with ${Array.isArray(assistantMessage.content) ? assistantMessage.content.length : 1} parts`,
-        );
       } catch (error) {
         console.error("Error generating agent response:", error);
       }
