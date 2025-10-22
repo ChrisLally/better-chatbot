@@ -8,6 +8,14 @@ import {
   Tool,
   UIMessage,
 } from "ai";
+import { after } from "next/server";
+import {
+  observe,
+  updateActiveObservation,
+  updateActiveTrace,
+} from "@langfuse/tracing";
+import { trace } from "@opentelemetry/api";
+import { langfuseSpanProcessor } from "@/instrumentation";
 
 import { customModelProvider, isToolCallUnsupportedModel } from "lib/ai/models";
 
@@ -60,7 +68,7 @@ const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
 });
 
-export async function POST(request: Request) {
+const handler = async (request: Request) => {
   try {
     const json = await request.json();
 
@@ -79,6 +87,20 @@ export async function POST(request: Request) {
       imageTool,
       mentions = [],
     } = chatApiSchemaRequestBodySchema.parse(json);
+
+    // Set session id and user id on active trace
+    const inputText = message.parts.find((part) => part.type === "text")?.text;
+
+    updateActiveObservation({
+      input: inputText,
+    });
+
+    updateActiveTrace({
+      name: "my-ai-sdk-trace",
+      sessionId: id, // Using chat ID as session ID
+      userId: user.id,
+      input: inputText,
+    });
 
     const model = customModelProvider.getModel(chatModel);
 
@@ -276,6 +298,28 @@ export async function POST(request: Request) {
           stopWhen: stepCountIs(10),
           toolChoice: "auto",
           abortSignal: request.signal,
+          experimental_telemetry: {
+            isEnabled: true,
+          },
+          onFinish: async (result) => {
+            updateActiveObservation({
+              output: result.content,
+            });
+            updateActiveTrace({
+              output: result.content,
+            });
+            trace.getActiveSpan()?.end();
+          },
+          onError: async (error) => {
+            updateActiveObservation({
+              output: error,
+              level: "ERROR",
+            });
+            updateActiveTrace({
+              output: error,
+            });
+            trace.getActiveSpan()?.end();
+          },
         });
         result.consumeStream();
         dataStream.merge(
@@ -288,6 +332,8 @@ export async function POST(request: Request) {
             },
           }),
         );
+        // Important in serverless environments: schedule flush after request is finished
+        after(async () => await langfuseSpanProcessor.forceFlush());
       },
 
       generateId: generateUUID,
@@ -331,4 +377,9 @@ export async function POST(request: Request) {
     logger.error(error);
     return Response.json({ message: error.message }, { status: 500 });
   }
-}
+};
+
+export const POST = observe(handler, {
+  name: "handle-chat-message",
+  endOnExit: false, // end observation _after_ stream has finished
+});
