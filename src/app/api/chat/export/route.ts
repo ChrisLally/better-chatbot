@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const isAccess = await checkThreadAccess(threadId);
+  const isAccess = await checkThreadAccess(user.id, threadId);
   if (!isAccess) {
     return new Response("Unauthorized", { status: 401 });
   }

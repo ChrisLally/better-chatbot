@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server-admin";
 import { Tables } from "@/types/supabase";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { Agent, AgentSummary } from "app-types/agent";
 
 export type User = Tables<"users">;
@@ -57,11 +56,6 @@ function userToAgentSummary(user: any): AgentSummary {
 // ============================================================================
 
 export async function getUsers(): Promise<User[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -81,11 +75,6 @@ export async function getUsersByType(
   userType: "human" | "agent",
   supabaseClient?: any,
 ): Promise<User[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = supabaseClient || (await createClient());
 
   const { data, error } = await supabase
@@ -106,11 +95,6 @@ export async function getUser(
   userId: string,
   supabaseClient?: any,
 ): Promise<User | null> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = supabaseClient || (await createClient());
 
   const { data, error } = await supabase
@@ -207,11 +191,6 @@ export async function createAgent(options: {
  * Get agent by ID (returns Agent type with all fields)
  */
 export async function getAgent(agentId: string): Promise<Agent | null> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -242,11 +221,6 @@ export async function getAgents(
     limit?: number;
   } = {},
 ): Promise<AgentSummary[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   let query = supabase
@@ -284,15 +258,10 @@ export async function getAgents(
  * Get agents with advanced filtering
  */
 export async function selectAgents(
-  _currentUserId: string, // Currently unused - agents shown to all users until workspaces are added
-  _filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["mine", "shared"], // Currently unused
+  userId: string,
+  filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["mine", "shared"],
   limit?: number,
 ): Promise<AgentSummary[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   let query = supabase
@@ -303,10 +272,10 @@ export async function selectAgents(
     .eq("user_type", "agent");
 
   // Apply filters
-  // NOTE: Currently, agents don't have a creator field. Each agent IS a user in the users table.
-  // Until workspaces/organizations are added, we show all agents to all users.
-  // Filters are accepted for future compatibility but currently show all agents regardless.
-  // TODO: Add creator/workspace relationship when implementing multi-tenant features
+  if (filters.includes("mine")) {
+    query = query.eq("id", userId); // Assuming 'id' is the owner ID for agents
+  }
+  // TODO: Implement 'shared' and 'bookmarked' filters when relevant relationships are established
 
   if (limit) {
     query = query.limit(limit);
@@ -337,11 +306,6 @@ export async function updateAgent(
     visibility?: "public" | "private" | "readonly";
   },
 ): Promise<Agent> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const updateData: any = {
@@ -377,11 +341,6 @@ export async function updateAgent(
  * Delete an agent
  */
 export async function deleteAgent(agentId: string): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -404,11 +363,6 @@ export async function checkAgentAccess(
   userId: string,
   _destructive: boolean = false,
 ): Promise<boolean> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -630,11 +584,6 @@ export async function getUserFullProfile(
   },
   supabaseClient?: any,
 ): Promise<UserFullProfile | null> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = supabaseClient || (await createClient());
   const includeActivity = options?.includeActivity ?? true;
 

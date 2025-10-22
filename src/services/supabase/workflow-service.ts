@@ -1,6 +1,5 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { Tables } from "@/types/supabase";
 import {
   DBWorkflow,
@@ -123,11 +122,6 @@ export async function getWorkflows(
   userId: string,
   filters?: WorkflowFilters,
 ): Promise<WorkflowSummary[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   let query = supabase.from("workflow").select(`
@@ -190,11 +184,6 @@ export async function getWorkflows(
 export async function getWorkflow(
   workflowId: string,
 ): Promise<Workflow | null> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -218,13 +207,9 @@ export async function getWorkflow(
  * Create a new workflow
  */
 export async function createWorkflow(
+  userId: string,
   data: WorkflowCreateInput,
 ): Promise<Workflow> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const workflowData = {
@@ -233,7 +218,7 @@ export async function createWorkflow(
     icon: data.icon || null,
     visibility: data.visibility || "private",
     is_published: data.isPublished || false,
-    user_id: currentUser.id,
+    user_id: userId,
     version: "0.1.0",
   };
 
@@ -258,11 +243,6 @@ export async function updateWorkflow(
   workflowId: string,
   updates: WorkflowUpdateInput,
 ): Promise<Workflow> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const updateData: any = {
@@ -297,11 +277,6 @@ export async function updateWorkflow(
  * Delete a workflow
  */
 export async function deleteWorkflow(workflowId: string): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -323,11 +298,6 @@ export async function checkWorkflowAccess(
   userId: string,
   destructive: boolean = false,
 ): Promise<boolean> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -372,11 +342,6 @@ export async function checkWorkflowAccess(
 export async function getWorkflowStructure(
   workflowId: string,
 ): Promise<WorkflowStructure> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // Get workflow details
@@ -435,11 +400,6 @@ export async function updateWorkflowStructure(
     deleteEdges?: string[];
   },
 ): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // Delete nodes if specified
@@ -520,16 +480,12 @@ export async function updateWorkflowStructure(
  * Execute a workflow (placeholder - actual implementation would depend on workflow executor)
  */
 export async function executeWorkflow(
+  userId: string,
   workflowId: string,
   input: any,
 ): Promise<any> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   // Check access first
-  const hasAccess = await checkWorkflowAccess(workflowId, currentUser.id);
+  const hasAccess = await checkWorkflowAccess(workflowId, userId);
   if (!hasAccess) {
     throw new Error("Unauthorized to execute this workflow");
   }
@@ -557,11 +513,6 @@ export async function executeWorkflow(
 export async function getWorkflowExecutions(
   _workflowId: string,
 ): Promise<WorkflowExecution[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   // TODO: Implement execution history tracking
   // For now, return empty array
 
@@ -578,11 +529,6 @@ export async function getWorkflowExecutions(
 export async function getWorkflowTools(
   userId: string,
 ): Promise<WorkflowTool[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -627,11 +573,6 @@ export async function getWorkflowTools(
 export async function getWorkflowsByUserId(
   userId: string,
 ): Promise<Workflow[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -654,11 +595,6 @@ export async function getWorkflowsByUserId(
 export async function getExecutableWorkflows(
   userId: string,
 ): Promise<WorkflowSummary[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase

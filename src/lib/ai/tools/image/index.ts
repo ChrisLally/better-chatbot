@@ -7,8 +7,6 @@ import {
   generateText,
 } from "ai";
 import { generateImageWithNanoBanana } from "lib/ai/image/generate-image";
-import { uploadFileFromBuffer } from "@/services/supabase/storage-service";
-import { safe, watchError } from "ts-safe";
 import z from "zod";
 import { ImageToolName } from "..";
 import logger from "logger";
@@ -67,34 +65,10 @@ export const nanoBananaTool = createTool({
         messages: latestMessages,
       });
 
-      const resultImages = await safe(images.images)
-        .map((images) => {
-          return Promise.all(
-            images.map(async (image) => {
-              const uploadedImage = await uploadFileFromBuffer(
-                Buffer.from(image.base64, "base64"),
-                "generated",
-                image.mimeType || "image/png",
-              );
-              return {
-                url: uploadedImage.url,
-                mimeType: image.mimeType || "image/png",
-              };
-            }),
-          );
-        })
-        .watch(
-          watchError((e) => {
-            logger.error(e);
-            logger.info(`upload image failed. using base64`);
-          }),
-        )
-        .ifFail(() => {
-          throw new Error(
-            "Image generation was successful, but file upload failed. Please check your file upload configuration and try again.",
-          );
-        })
-        .unwrap();
+      const resultImages = images.images.map((image) => ({
+        url: `data:${image.mimeType || "image/png"};base64,${image.base64}`,
+        mimeType: image.mimeType || "image/png",
+      }));
 
       return {
         images: resultImages,
@@ -166,17 +140,13 @@ export const openaiImageTool = createTool({
     for (const toolResult of result.staticToolResults) {
       if (toolResult.toolName === "image_generation") {
         const base64Image = toolResult.output.result;
-        const uploadedImage = await uploadFileFromBuffer(
-          Buffer.from(base64Image, "base64"),
-          "generated",
-          "image/webp",
-        ).catch(() => {
-          throw new Error(
-            "Image generation was successful, but file upload failed. Please check your file upload configuration and try again.",
-          );
-        });
         return {
-          images: [{ url: uploadedImage.url, mimeType: "image/webp" }],
+          images: [
+            {
+              url: `data:image/webp;base64,${base64Image}`,
+              mimeType: "image/webp",
+            },
+          ],
           mode,
           model: "gpt-image-1-mini",
           guide:

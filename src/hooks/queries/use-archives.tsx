@@ -1,18 +1,20 @@
+"use client";
 import { appStore } from "@/app/store";
 import { ArchiveWithItemCount } from "app-types/archive";
 import useSWR from "swr";
-import { getArchivesWithItemCount } from "@/services/supabase/archive-service";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
+import { getArchivesAction } from "@/app/actions/archive-actions";
+import { useAuth } from "@/context/auth-context";
 
 export const useArchives = () => {
+  const { user } = useAuth();
+
   return useSWR<ArchiveWithItemCount[]>(
-    "archives",
+    user ? "archives" : null,
     async () => {
-      const user = await getSupabaseUser();
       if (!user) {
         return [];
       }
-      return await getArchivesWithItemCount(user.id);
+      return await getArchivesAction();
     },
     {
       fallbackData: [],

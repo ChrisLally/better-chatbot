@@ -18,6 +18,7 @@ import {
 } from "@/services/supabase/chat-service";
 import { ChatThread, ChatMessage } from "app-types/chat";
 import { revalidateTag } from "next/cache";
+import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 
 // Re-export the type
 export type { ThreadWithLastMessage };
@@ -57,7 +58,12 @@ export async function getThreadWithMessagesAction(
 export async function createThreadAction(
   thread: Omit<ChatThread, "createdAt"> & { id?: string },
 ): Promise<ChatThread> {
-  const newThread = await createThreadService(thread);
+  const user = await getSupabaseUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const newThread = await createThreadService(user.id, thread);
   revalidateTag("threads");
   return newThread;
 }
@@ -98,7 +104,12 @@ export async function deleteAllThreadsAction(): Promise<void> {
 export async function checkThreadAccessAction(
   threadId: string,
 ): Promise<boolean> {
-  return checkThreadAccessService(threadId);
+  const user = await getSupabaseUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  return checkThreadAccessService(user.id, threadId);
 }
 
 // ============================================================================
@@ -111,7 +122,12 @@ export async function checkThreadAccessAction(
 export async function getMessagesAction(
   threadId: string,
 ): Promise<ChatMessage[]> {
-  return getMessagesService(threadId);
+  const user = await getSupabaseUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  return getMessagesService(user.id, threadId);
 }
 
 /**
@@ -120,7 +136,12 @@ export async function getMessagesAction(
 export async function createMessageAction(
   message: Omit<ChatMessage, "createdAt">,
 ): Promise<ChatMessage> {
-  const newMessage = await createMessageService(message);
+  const user = await getSupabaseUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const newMessage = await createMessageService(user.id, message);
   revalidateTag(`messages-${message.threadId}`);
   return newMessage;
 }
@@ -161,8 +182,13 @@ export async function deleteMessageAction(messageId: string): Promise<void> {
 export async function deleteMessagesAfterMessageAction(
   messageId: string,
 ): Promise<void> {
+  const user = await getSupabaseUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
   // This action also needs the threadId to revalidate the correct cache tag.
   // Similar to deleteMessageAction, this needs refinement.
-  await deleteMessagesAfterMessageService(messageId);
+  await deleteMessagesAfterMessageService(user.id, messageId);
   // revalidateTag(`messages-{threadId}`); // This needs the threadId
 }

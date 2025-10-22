@@ -323,3 +323,15 @@ No more unnecessary intermediate layer with standalone Server Actions. Mutations
 
 **Last Updated:** After Phase 4 import fixes and verification
 **Verified By:** `pnpm check` (lint + types + tests)
+
+---
+
+## Phase 5: Auth Context Migration (In Progress)
+
+**Issue Discovered:** After Phase 4, client hooks were calling `getSupabaseUser()` (a server-only function), causing build errors.
+
+**Root Cause:** Hooks like `use-agents.ts`, `use-archives.tsx`, and `use-workflow-tool-list.ts` were directly calling server-only auth helpers from client components.
+
+**Solution:** Migrate to `useAuth()` context pattern to provide user from React Context instead of server-only calls.
+
+**Status:** Documented in separate file: `@/docs/TASKS/refactoring/remove-server-only-from-services.md`

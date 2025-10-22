@@ -31,9 +31,9 @@ src/services/
 
 ```typescript
 //   GOOD: Use @ alias
-import { getUser } from '@/services/supabase/users-service';
-import { generateAgentStepResponseWithMCP } from '@/services/ai/ai-service';
-import { buildSystemPrompt } from '@/services/ai/prompts';
+import { getUser } from '@/src/services/supabase/users-service';
+import { generateAgentStepResponseWithMCP } from '@/src/services/ai/ai-service';
+import { buildSystemPrompt } from '@/src/services/ai/prompts';
 
 // L BAD: Relative imports
 import { getUser } from '../supabase/users-service';
@@ -46,10 +46,10 @@ import { generateAgentStepResponseWithMCP } from './ai-service';
 
 ```typescript
 //   GOOD: Static imports at top
-import { getProjectTaskStep } from '@/services/supabase/project-task-steps-service';
+import { getProjectTaskStep } from '@/src/services/supabase/project-task-steps-service';
 
 // L BAD: Dynamic imports in function body (unless needed for code splitting)
-const { getProjectTaskStep } = await import('@/services/supabase/...');
+const { getProjectTaskStep } = await import('@/src/services/supabase/...');
 ```
 
 **Exception**: Dynamic imports are acceptable for lazy-loading or conditional code splitting, but not for standard service dependencies.
@@ -60,7 +60,7 @@ const { getProjectTaskStep } = await import('@/services/supabase/...');
 
 ```typescript
 //   GOOD: AI service delegates to database service
-import { updateProjectTaskStep } from '@/services/supabase/project-task-steps-service';
+import { updateProjectTaskStep } from '@/src/services/supabase/project-task-steps-service';
 await updateProjectTaskStep(stepId, { status: 'completed' });
 
 // L BAD: AI service directly queries database
@@ -183,7 +183,7 @@ async function complexOperation(): Promise<{
 import type {
   RequestType,
   ResponseType
-} from '@/types/{domain}-types';
+} from '@/src/types/{domain}-types';
 
 export async function serviceFunction({
   param1,
@@ -196,7 +196,7 @@ export async function serviceFunction({
 **Rule**: All service functions must:
 - Have explicit parameter types
 - Have explicit return types
-- Use domain-specific types from `@/types/`
+- Use domain-specific types from `@/src/types/`
 
 ## 8. Debug Logging (Standardized)
 
@@ -351,6 +351,88 @@ export function fetchData(id: string): Promise<Data> {
 }
 ```
 
+## 14. Cache Revalidation Tags (For Server Actions)
+
+### **Understanding cache revalidation in the context of mutations**
+
+Services are pure data-access functions. Cache revalidation happens at the **Server Action layer** (orchestration), not in services. However, services should be designed with cache keys in mind.
+
+**Service Pattern** (No cache logic):
+```typescript
+// In services/supabase/agents-service.ts
+export async function createAgent(data: AgentInsert): Promise<Agent> {
+  return supabaseAdmin
+    .from('agents')
+    .insert(data)
+    .single()
+}
+
+export async function updateAgent(id: string, updates: AgentUpdate): Promise<Agent> {
+  return supabaseAdmin
+    .from('agents')
+    .update(updates)
+    .eq('id', id)
+    .single()
+}
+```
+
+**Server Action Pattern** (Cache revalidation):
+```typescript
+// In app/actions/agent-actions.ts
+import { createAgent, updateAgent } from '@/src/services/supabase/agents-service'
+import { revalidateTag } from 'next/cache'
+
+export async function createAgentAction(data: AgentInsert): Promise<Agent> {
+  const result = await createAgent(data)
+
+  // Revalidate caches to sync with client-side SWR hooks
+  revalidateTag('agents')              // Invalidate agents collection
+  revalidateTag(`agent-${result.id}`)  // Invalidate specific agent
+
+  return result
+}
+
+export async function updateAgentAction(id: string, updates: AgentUpdate): Promise<Agent> {
+  const result = await updateAgent(id, updates)
+
+  // Revalidate caches
+  revalidateTag('agents')              // Collection may have changed
+  revalidateTag(`agent-${id}`)         // Specific agent definitely changed
+
+  return result
+}
+```
+
+**Cache Tag Naming Convention** (Used by Server Actions):
+```
+Collection tags (plural):
+- revalidateTag('agents')
+- revalidateTag('workflows')
+- revalidateTag('chats')
+
+Individual item tags (singular with ID):
+- revalidateTag(`agent-${id}`)
+- revalidateTag(`workflow-${id}`)
+- revalidateTag(`chat-${id}`)
+
+Scoped collection tags:
+- revalidateTag('user-agents')
+- revalidateTag(`archive-items-${archiveId}`)
+- revalidateTag(`messages-${threadId}`)
+
+Derived/relationship tags:
+- revalidateTag(`workflow-structure-${id}`)
+- revalidateTag(`ai-models-enabled`)
+```
+
+**Why This Matters**:
+- Services stay pure and reusable
+- Cache logic lives at the orchestration layer (Server Actions)
+- Cache keys match SWR hook query keys for automatic synchronization
+- Tests can mock services without worrying about cache revalidation
+
+See `@/docs/PATTERNS/server-actions-rules.md` for comprehensive Server Action cache patterns.
+
 ## Summary
 
 **Key Universal Principles**:
@@ -365,11 +447,27 @@ export function fetchData(id: string): Promise<Data> {
 - **Documentation**: JSDoc for complex functions
 - **Logging Standards**: Structured logs with clear prefixes
 - **Async Patterns**: Consistent async/await usage
+- **Cache Agnosticism**: Services stay pure, cache logic goes in Server Actions
 
 **Related Documentation**:
-- `@/services/ai/_AI_SERVICE_RULES.md` - AI service-specific rules
-- `@/services/supabase/_SUPABASE_SERVICE_RULES.md` - Supabase service-specific rules
-- `@/services/langfuse/_LANGFUSE_SERVICE_RULES.md` - Langfuse tracing integration rules
-- `@/lib/supabase/server.ts` - Client authentication implementation
+- `@/docs/PATTERNS/server-actions-rules.md` - Server Action patterns and cache revalidation (orchestration layer)
+- `@/docs/PATTERNS/hooks-rules.md` - Hook patterns and SWR usage (presentation layer)
+- `@/docs/PATTERNS/services/supabase-rules.md` - Supabase service-specific rules
+- `@/docs/PATTERNS/services/ai-rules.md` - AI service-specific rules
+- `@/docs/PATTERNS/services/langfuse-rules.md` - Langfuse tracing integration rules
+- `@/src/lib/supabase/server.ts` - Client authentication implementation
 
 **Core Principle**: Services are the coordination layer between your application and external systems (databases, APIs, AI models). Keep them pure, predictable, and focused on their specific domain while following these universal patterns for consistency and maintainability.
+
+**Architecture Pattern**:
+```
+Component
+  ↓
+Hook (SWR) / Server Component
+  ↓
+Server Action (Cache revalidation)
+  ↓
+Service (Pure data access/business logic)
+  ↓
+External System (Database, API, etc.)
+```

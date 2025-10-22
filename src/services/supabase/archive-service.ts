@@ -1,6 +1,5 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { Tables } from "@/types/supabase";
 import { Archive, ArchiveItem } from "app-types/archive";
 
@@ -43,11 +42,6 @@ function archiveItemRowToArchiveItem(row: ArchiveItemRow): ArchiveItem {
  * Get all archives for a user
  */
 export async function getArchives(userId: string): Promise<Archive[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -68,11 +62,6 @@ export async function getArchives(userId: string): Promise<Archive[]> {
  * Get single archive by ID
  */
 export async function getArchive(archiveId: string): Promise<Archive | null> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -95,15 +84,13 @@ export async function getArchive(archiveId: string): Promise<Archive | null> {
 /**
  * Create new archive
  */
-export async function createArchive(data: {
-  name: string;
-  description?: string | null;
-}): Promise<Archive> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
+export async function createArchive(
+  userId: string,
+  data: {
+    name: string;
+    description?: string | null;
+  },
+): Promise<Archive> {
   const supabase = await createClient();
 
   const { data: archive, error } = await supabase
@@ -111,7 +98,7 @@ export async function createArchive(data: {
     .insert({
       name: data.name,
       description: data.description,
-      user_id: currentUser.id,
+      user_id: userId,
     })
     .select("*")
     .single();
@@ -128,17 +115,13 @@ export async function createArchive(data: {
  * Update archive
  */
 export async function updateArchive(
+  userId: string,
   archiveId: string,
   updates: {
     name?: string;
     description?: string | null;
   },
 ): Promise<Archive> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const updateData: any = {
@@ -153,7 +136,7 @@ export async function updateArchive(
     .from("archive")
     .update(updateData)
     .eq("id", archiveId)
-    .eq("user_id", currentUser.id)
+    .eq("user_id", userId)
     .select("*")
     .single();
 
@@ -168,12 +151,10 @@ export async function updateArchive(
 /**
  * Delete archive
  */
-export async function deleteArchive(archiveId: string): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
+export async function deleteArchive(
+  userId: string,
+  archiveId: string,
+): Promise<void> {
   const supabase = await createClient();
 
   // First delete all archive items
@@ -184,7 +165,7 @@ export async function deleteArchive(archiveId: string): Promise<void> {
     .from("archive")
     .delete()
     .eq("id", archiveId)
-    .eq("user_id", currentUser.id);
+    .eq("user_id", userId);
 
   if (error) {
     console.error("Error deleting archive:", error);
@@ -196,13 +177,9 @@ export async function deleteArchive(archiveId: string): Promise<void> {
  * Get archive items
  */
 export async function getArchiveItems(
+  userId: string,
   archiveId: string,
 ): Promise<ArchiveItem[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // First verify archive exists and user owns it
@@ -210,7 +187,7 @@ export async function getArchiveItems(
     .from("archive")
     .select("id")
     .eq("id", archiveId)
-    .eq("user_id", currentUser.id)
+    .eq("user_id", userId)
     .single();
 
   if (!archive) {
@@ -235,14 +212,10 @@ export async function getArchiveItems(
  * Add item to archive
  */
 export async function addArchiveItem(
+  userId: string,
   archiveId: string,
   itemId: string,
 ): Promise<ArchiveItem> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // First verify archive exists and user owns it
@@ -250,7 +223,7 @@ export async function addArchiveItem(
     .from("archive")
     .select("id")
     .eq("id", archiveId)
-    .eq("user_id", currentUser.id)
+    .eq("user_id", userId)
     .single();
 
   if (!archive) {
@@ -274,7 +247,7 @@ export async function addArchiveItem(
     .insert({
       archive_id: archiveId,
       item_id: itemId,
-      user_id: currentUser.id,
+      user_id: userId,
     })
     .select("*")
     .single();
@@ -291,14 +264,10 @@ export async function addArchiveItem(
  * Remove item from archive
  */
 export async function removeArchiveItem(
+  userId: string,
   archiveId: string,
   itemId: string,
 ): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // First verify archive exists and user owns it
@@ -306,7 +275,7 @@ export async function removeArchiveItem(
     .from("archive")
     .select("id")
     .eq("id", archiveId)
-    .eq("user_id", currentUser.id)
+    .eq("user_id", userId)
     .single();
 
   if (!archive) {
@@ -332,11 +301,6 @@ export async function checkArchiveAccess(
   archiveId: string,
   userId: string,
 ): Promise<boolean> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -363,11 +327,6 @@ export async function checkArchiveAccess(
 export async function getArchivesWithItemCount(
   userId: string,
 ): Promise<Array<Archive & { itemCount: number }>> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase

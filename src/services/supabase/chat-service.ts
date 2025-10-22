@@ -1,6 +1,5 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { Tables } from "@/types/supabase";
 import { ChatThread, ChatMessage } from "app-types/chat";
 
@@ -45,11 +44,6 @@ function messageRowToChatMessage(row: MessageRow): ChatMessage {
  * Get all threads for the current user with last message timestamp
  */
 export async function getThreads(): Promise<ThreadWithLastMessage[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data: threads, error } = await supabase
@@ -90,11 +84,6 @@ export async function getThreads(): Promise<ThreadWithLastMessage[]> {
  * Get a single thread by ID
  */
 export async function getThread(threadId: string): Promise<ChatThread | null> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data: thread, error } = await supabase
@@ -120,11 +109,6 @@ export async function getThread(threadId: string): Promise<ChatThread | null> {
 export async function getThreadWithMessages(
   threadId: string,
 ): Promise<(ChatThread & { messages: ChatMessage[] }) | null> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // First get the thread
@@ -168,18 +152,14 @@ export async function getThreadWithMessages(
  * Create a new thread
  */
 export async function createThread(
+  userId: string,
   thread: Omit<ChatThread, "createdAt"> & { id?: string },
 ): Promise<ChatThread> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const insertData: any = {
     title: thread.title,
-    user_id: thread.userId || currentUser.id,
+    user_id: userId,
   };
 
   // Include id if provided
@@ -208,11 +188,6 @@ export async function updateThread(
   threadId: string,
   updates: Partial<Omit<ChatThread, "id" | "createdAt" | "userId">>,
 ): Promise<ChatThread> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -236,11 +211,6 @@ export async function updateThread(
  * Delete a thread
  */
 export async function deleteThread(threadId: string): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -258,11 +228,6 @@ export async function deleteThread(threadId: string): Promise<void> {
  * Delete all threads for the current user
  */
 export async function deleteAllThreads(): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { error } = await supabase.from("chat_thread").delete();
@@ -276,18 +241,17 @@ export async function deleteAllThreads(): Promise<void> {
 /**
  * Check if user has access to a thread
  */
-export async function checkThreadAccess(threadId: string): Promise<boolean> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    return false;
-  }
-
+export async function checkThreadAccess(
+  userId: string,
+  threadId: string,
+): Promise<boolean> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("chat_thread")
     .select("id")
     .eq("id", threadId)
+    .eq("user_id", userId) // Add user_id check for access control
     .single();
 
   if (error && error.code !== "PGRST116") {
@@ -305,16 +269,13 @@ export async function checkThreadAccess(threadId: string): Promise<boolean> {
 /**
  * Get messages for a thread
  */
-export async function getMessages(threadId: string): Promise<ChatMessage[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
+export async function getMessages(
+  userId: string,
+  threadId: string,
+): Promise<ChatMessage[]> {
   const supabase = await createClient();
 
-  // First verify user has access to the thread
-  const hasAccess = await checkThreadAccess(threadId);
+  const hasAccess = await checkThreadAccess(userId, threadId);
   if (!hasAccess) {
     throw new Error("Access denied to thread");
   }
@@ -337,17 +298,12 @@ export async function getMessages(threadId: string): Promise<ChatMessage[]> {
  * Create a new message
  */
 export async function createMessage(
+  userId: string,
   message: Omit<ChatMessage, "createdAt">, // Keep id, AI SDK provides it
 ): Promise<ChatMessage> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
-  // Verify user has access to the thread
-  const hasAccess = await checkThreadAccess(message.threadId);
+  const hasAccess = await checkThreadAccess(userId, message.threadId);
   if (!hasAccess) {
     throw new Error("Access denied to thread");
   }
@@ -379,11 +335,6 @@ export async function updateMessage(
   messageId: string,
   updates: Partial<Omit<ChatMessage, "id" | "createdAt" | "threadId">>,
 ): Promise<ChatMessage> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -409,11 +360,6 @@ export async function updateMessage(
  * Delete a message
  */
 export async function deleteMessage(messageId: string): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -431,13 +377,9 @@ export async function deleteMessage(messageId: string): Promise<void> {
  * Delete all messages after a specific message ID in a thread
  */
 export async function deleteMessagesAfterMessage(
+  userId: string,
   messageId: string,
 ): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // First get the message to find its thread and timestamp
@@ -456,8 +398,7 @@ export async function deleteMessagesAfterMessage(
     return;
   }
 
-  // Verify user has access to the thread
-  const hasAccess = await checkThreadAccess(message.thread_id);
+  const hasAccess = await checkThreadAccess(userId, message.thread_id);
   if (!hasAccess) {
     throw new Error("Access denied to thread");
   }

@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import logger from "lib/logger";
 
 // Types
@@ -87,15 +86,11 @@ function validateFile(file: File): { isValid: boolean; error?: string } {
  * Uploads a file to Supabase Storage
  */
 export async function uploadFile(
+  userId: string,
   file: File,
   path: string,
   bucket: string = DEFAULT_BUCKET,
 ): Promise<UploadResult> {
-  const user = await getSupabaseUser();
-  if (!user?.id) {
-    throw new Error("Unauthorized");
-  }
-
   // Validate file
   const validation = validateFile(file);
   if (!validation.isValid) {
@@ -111,7 +106,7 @@ export async function uploadFile(
   const uniqueFileName = `${timestamp}_${randomSuffix}.${fileExt}`;
 
   // Create full path with user ID for security
-  const fullPath = `users/${user.id}/${path}/${uniqueFileName}`;
+  const fullPath = `users/${userId}/${path}/${uniqueFileName}`;
 
   try {
     const { data, error } = await supabase.storage
@@ -147,16 +142,12 @@ export async function uploadFile(
  * Uploads a file from buffer to Supabase Storage
  */
 export async function uploadFileFromBuffer(
+  userId: string,
   buffer: Buffer,
   path: string,
   mimeType: string,
   bucket: string = DEFAULT_BUCKET,
 ): Promise<UploadResult> {
-  const user = await getSupabaseUser();
-  if (!user?.id) {
-    throw new Error("Unauthorized");
-  }
-
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
     throw new Error(`File type ${mimeType} is not allowed`);
@@ -176,7 +167,7 @@ export async function uploadFileFromBuffer(
   const uniqueFileName = `${timestamp}_${randomSuffix}.${mimeType.split("/")[1] || "bin"}`;
 
   // Create full path with user ID for security
-  const fullPath = `users/${user.id}/${path}/${uniqueFileName}`;
+  const fullPath = `users/${userId}/${path}/${uniqueFileName}`;
 
   try {
     const { data, error } = await supabase.storage
@@ -212,14 +203,10 @@ export async function uploadFileFromBuffer(
  * Gets a signed upload URL for direct client-side uploads
  */
 export async function getSignedUploadUrl(
+  userId: string,
   path: string,
   bucket: string = DEFAULT_BUCKET,
 ): Promise<{ uploadUrl: string; path: string }> {
-  const user = await getSupabaseUser();
-  if (!user?.id) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   // Generate unique filename
@@ -228,7 +215,7 @@ export async function getSignedUploadUrl(
   const uniqueFileName = `${timestamp}_${randomSuffix}`;
 
   // Create full path with user ID for security
-  const fullPath = `users/${user.id}/${path}/${uniqueFileName}`;
+  const fullPath = `users/${userId}/${path}/${uniqueFileName}`;
 
   try {
     const { data, error } = await supabase.storage
@@ -258,11 +245,6 @@ export async function getSignedDownloadUrl(
   bucket: string = DEFAULT_BUCKET,
   expiresIn: number = 3600,
 ): Promise<string> {
-  const user = await getSupabaseUser();
-  if (!user?.id) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   try {
@@ -289,11 +271,6 @@ export async function deleteFile(
   path: string,
   bucket: string = DEFAULT_BUCKET,
 ): Promise<void> {
-  const user = await getSupabaseUser();
-  if (!user?.id) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   try {
@@ -313,20 +290,16 @@ export async function deleteFile(
  * Lists files in a directory
  */
 export async function listFiles(
+  userId: string,
   prefix: string,
   bucket: string = DEFAULT_BUCKET,
 ): Promise<FileInfo[]> {
-  const user = await getSupabaseUser();
-  if (!user?.id) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   try {
     const { data, error } = await supabase.storage
       .from(bucket)
-      .list(`users/${user.id}/${prefix}`, {
+      .list(`users/${userId}/${prefix}`, {
         limit: 100,
         sortBy: { column: "created_at", order: "desc" },
       });
@@ -347,20 +320,16 @@ export async function listFiles(
  * Gets file metadata
  */
 export async function getFileMetadata(
+  userId: string,
   path: string,
   bucket: string = DEFAULT_BUCKET,
 ): Promise<FileMetadata> {
-  const user = await getSupabaseUser();
-  if (!user?.id) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   try {
     const { data, error } = await supabase.storage
       .from(bucket)
-      .list(`users/${user.id}`, {
+      .list(`users/${userId}`, {
         limit: 1,
         search: path.split("/").pop(), // Search for filename
       });

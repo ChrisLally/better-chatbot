@@ -37,13 +37,12 @@ export function AppSidebarAgents({ userRole }: { userRole?: string | null }) {
   const t = useTranslations();
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
-  const { bookmarkedAgents, myAgents, isLoading, sharedAgents } = useAgents({
+  const { agents, isLoading, sharedAgents } = useAgents({
+    filters: ["all"],
     limit: 50,
-  }); // Increase limit since we're not artificially limiting display
+  });
 
-  const agents = useMemo(() => {
-    return [...myAgents, ...bookmarkedAgents];
-  }, [bookmarkedAgents, myAgents]);
+  // Note: using agents directly from hook which returns all agents
 
   const handleAgentClick = useCallback(
     (id: string) => {

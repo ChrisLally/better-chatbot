@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     // For now, we'll save a placeholder that gets updated
     setTimeout(async () => {
       try {
-        await createMessage({
+        await createMessage(agent.id, {
           id: assistantMessageId,
           threadId: conversationId,
           role: "assistant",

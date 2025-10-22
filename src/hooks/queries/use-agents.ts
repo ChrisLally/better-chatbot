@@ -3,8 +3,8 @@ import { appStore } from "@/app/store";
 import useSWR, { SWRConfiguration, useSWRConfig } from "swr";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { AgentSummary } from "app-types/agent";
-import { selectAgents } from "@/services/supabase/users-service";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
+import { getAgentsAction } from "@/app/actions/agent-actions";
+import { useAuth } from "@/context/auth-context";
 
 interface UseAgentsOptions extends SWRConfiguration {
   filters?: ("all" | "mine" | "shared" | "bookmarked")[];
@@ -13,9 +13,10 @@ interface UseAgentsOptions extends SWRConfiguration {
 
 export function useAgents(options: UseAgentsOptions = {}) {
   const { filters = ["mine", "shared"], limit = 50, ...swrOptions } = options;
+  const { user } = useAuth();
 
   // Build cache key for SWR
-  const cacheKey = `agents-${filters.join(",")}-${limit}`;
+  const cacheKey = user ? `agents-${filters.join(",")}-${limit}` : null;
 
   const {
     data: agents = [],
@@ -25,11 +26,10 @@ export function useAgents(options: UseAgentsOptions = {}) {
   } = useSWR<AgentSummary[]>(
     cacheKey,
     async () => {
-      const user = await getSupabaseUser();
       if (!user) {
         return [];
       }
-      return await selectAgents(user.id, filters, limit);
+      return await getAgentsAction(filters, limit);
     },
     {
       errorRetryCount: 0,

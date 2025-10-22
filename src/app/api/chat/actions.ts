@@ -86,7 +86,7 @@ export async function selectThreadWithMessagesAction(threadId: string) {
   if (thread.userId !== user.id) {
     return null;
   }
-  const messages = await getMessages(threadId);
+  const messages = await getMessages(user.id, threadId);
   return { ...thread, messages: messages ?? [] };
 }
 
@@ -102,7 +102,11 @@ export async function deleteMessagesByChatIdAfterTimestampAction(
   messageId: string,
 ) {
   "use server";
-  await deleteMessagesAfterMessage(messageId);
+  const user = await getSupabaseUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+  await deleteMessagesAfterMessage(user.id, messageId);
 }
 
 export async function updateThreadAction(
@@ -262,7 +266,7 @@ export async function exportChatAction({
 }) {
   const userId = await getUserId();
 
-  const isAccess = await checkThreadAccess(threadId);
+  const isAccess = await checkThreadAccess(userId, threadId);
   if (!isAccess) {
     return new Response("Unauthorized", { status: 401 });
   }

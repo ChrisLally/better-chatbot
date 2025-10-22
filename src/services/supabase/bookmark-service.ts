@@ -1,6 +1,5 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
 import { Tables } from "@/types/supabase";
 
 type BookmarkRow = Tables<"bookmark">;
@@ -26,11 +25,6 @@ export async function createBookmark(
   itemId: string,
   itemType: "agent" | "workflow" | "mcp",
 ): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   // Verify the user can only bookmark items they have access to
   const hasAccess = await checkItemAccess(itemId, itemType, userId);
   if (!hasAccess) {
@@ -63,11 +57,6 @@ export async function removeBookmark(
   itemId: string,
   itemType: "agent" | "workflow" | "mcp",
 ): Promise<void> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -92,11 +81,6 @@ export async function toggleBookmark(
   itemType: "agent" | "workflow" | "mcp",
   isCurrentlyBookmarked: boolean,
 ): Promise<boolean> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   try {
     if (isCurrentlyBookmarked) {
       await removeBookmark(userId, itemId, itemType);
@@ -125,11 +109,6 @@ export async function getBookmarks(
   userId: string,
   itemType?: "agent" | "workflow" | "mcp",
 ): Promise<Bookmark[]> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   let query = supabase
@@ -166,11 +145,6 @@ export async function checkBookmark(
   itemId: string,
   itemType: "agent" | "workflow" | "mcp",
 ): Promise<boolean> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -204,11 +178,6 @@ export async function checkItemAccess(
   itemType: "agent" | "workflow" | "mcp",
   userId: string,
 ): Promise<boolean> {
-  const currentUser = await getSupabaseUser();
-  if (!currentUser) {
-    throw new Error("Unauthorized");
-  }
-
   const supabase = await createClient();
 
   if (itemType === "agent") {

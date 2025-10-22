@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
     if (!threadData) {
       logger.info(`create chat thread: ${id}`);
-      threadData = await createThread({
+      threadData = await createThread(user.id, {
         id,
         title: "",
         userId: user.id,
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
     // Get messages for the thread
     const { getMessages } = await import("@/services/supabase/chat-service");
-    const threadMessages = await getMessages(id);
+    const threadMessages = await getMessages(user.id, id);
 
     const messages: UIMessage[] = threadMessages.map((m) => {
       return {
@@ -292,7 +292,7 @@ export async function POST(request: Request) {
       generateId: generateUUID,
       onFinish: async ({ responseMessage }) => {
         if (responseMessage.id == message.id) {
-          await createMessage({
+          await createMessage(user.id, {
             id: responseMessage.id,
             threadId: threadData!.id,
             role: responseMessage.role,
@@ -300,13 +300,13 @@ export async function POST(request: Request) {
             metadata,
           });
         } else {
-          await createMessage({
+          await createMessage(user.id, {
             id: message.id,
             threadId: threadData!.id,
             role: message.role,
             parts: message.parts.map(convertToSavePart),
           });
-          await createMessage({
+          await createMessage(user.id, {
             id: responseMessage.id,
             threadId: threadData!.id,
             role: responseMessage.role,

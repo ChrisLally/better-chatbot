@@ -1,18 +1,19 @@
 "use client";
 import useSWR, { SWRConfiguration } from "swr";
 import { appStore } from "@/app/store";
-import { getExecutableWorkflows } from "@/services/supabase/workflow-service";
-import { getSupabaseUser } from "@/lib/supabase/auth-helpers";
+import { getExecutableWorkflowsAction } from "@/app/actions/workflow-actions";
+import { useAuth } from "@/context/auth-context";
 
 export function useWorkflowToolList(options?: SWRConfiguration) {
+  const { user } = useAuth();
+
   return useSWR(
-    "executableWorkflows",
+    user ? "executableWorkflows" : null,
     async () => {
-      const user = await getSupabaseUser();
       if (!user) {
         return [];
       }
-      return await getExecutableWorkflows(user.id);
+      return await getExecutableWorkflowsAction();
     },
     {
       errorRetryCount: 0,

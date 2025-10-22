@@ -8,10 +8,12 @@ import {
   addArchiveItem,
   removeArchiveItem,
   checkArchiveAccess,
+  getArchivesWithItemCount,
 } from "@/services/supabase/archive-service";
 import {
   Archive,
   ArchiveItem,
+  ArchiveWithItemCount,
   ArchiveCreateSchema,
   ArchiveUpdateSchema,
 } from "app-types/archive";
@@ -21,6 +23,23 @@ import { revalidateTag } from "next/cache";
 // ============================================================================
 // ARCHIVE SERVER ACTIONS
 // ============================================================================
+
+/**
+ * Get all archives for the current user with item counts
+ */
+export async function getArchivesAction(): Promise<ArchiveWithItemCount[]> {
+  try {
+    const user = await getSupabaseUser();
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
+
+    return await getArchivesWithItemCount(user.id);
+  } catch (error) {
+    console.error("Error fetching archives:", error);
+    throw new Error("Failed to fetch archives");
+  }
+}
 
 /**
  * Create new archive
@@ -37,7 +56,7 @@ export async function createArchiveAction(
     // Validate input
     const validatedData = ArchiveCreateSchema.parse(data);
 
-    const newArchive = await createArchive({
+    const newArchive = await createArchive(user.id, {
       name: validatedData.name,
       description: validatedData.description,
     });
@@ -74,7 +93,7 @@ export async function updateArchiveAction(
     // Validate input
     const validatedUpdates = ArchiveUpdateSchema.parse(updates);
 
-    const updatedArchive = await updateArchive(archiveId, {
+    const updatedArchive = await updateArchive(user.id, archiveId, {
       name: validatedUpdates.name,
       description: validatedUpdates.description,
     });
@@ -106,7 +125,7 @@ export async function deleteArchiveAction(archiveId: string): Promise<void> {
       throw new Error("Access denied");
     }
 
-    await deleteArchive(archiveId);
+    await deleteArchive(user.id, archiveId);
     revalidateTag("archives");
     revalidateTag(`archive-${archiveId}`);
   } catch (error) {
@@ -134,7 +153,7 @@ export async function addArchiveItemAction(
       throw new Error("Access denied");
     }
 
-    const newArchiveItem = await addArchiveItem(archiveId, itemId);
+    const newArchiveItem = await addArchiveItem(user.id, archiveId, itemId);
     revalidateTag(`archive-items-${archiveId}`);
     return newArchiveItem;
   } catch (error) {
@@ -162,7 +181,7 @@ export async function removeArchiveItemAction(
       throw new Error("Access denied");
     }
 
-    await removeArchiveItem(archiveId, itemId);
+    await removeArchiveItem(user.id, archiveId, itemId);
     revalidateTag(`archive-items-${archiveId}`);
   } catch (error) {
     console.error("Error removing item from archive:", error);

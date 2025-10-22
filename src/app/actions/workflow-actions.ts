@@ -7,6 +7,7 @@ import {
   deleteWorkflow,
   updateWorkflowStructure,
   executeWorkflow,
+  getExecutableWorkflows,
 } from "@/services/supabase/workflow-service";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
@@ -47,6 +48,23 @@ const ExecuteWorkflowSchema = z.object({
 // ============================================================================
 
 /**
+ * Get all executable workflows for the current user
+ */
+export async function getExecutableWorkflowsAction() {
+  try {
+    const user = await getSupabaseUser();
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
+
+    return await getExecutableWorkflows(user.id);
+  } catch (error) {
+    console.error("Error fetching executable workflows:", error);
+    throw new Error("Failed to fetch executable workflows");
+  }
+}
+
+/**
  * Create a new workflow
  */
 export async function createWorkflowAction(
@@ -61,7 +79,7 @@ export async function createWorkflowAction(
     // Validate data
     const validatedData = CreateWorkflowSchema.parse(data);
 
-    const newWorkflow = await createWorkflow({
+    const newWorkflow = await createWorkflow(user.id, {
       name: validatedData.name,
       description: validatedData.description,
       icon: validatedData.icon,
@@ -175,7 +193,7 @@ export async function executeWorkflowAction(
     // Validate input
     const validatedInput = ExecuteWorkflowSchema.parse(input);
 
-    return await executeWorkflow(workflowId, validatedInput.query);
+    return await executeWorkflow(user.id, workflowId, validatedInput.query);
   } catch (error) {
     console.error("Error executing workflow:", error);
     throw error;

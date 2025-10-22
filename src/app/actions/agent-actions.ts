@@ -7,9 +7,35 @@ import {
   updateAgent,
   deleteAgent,
   checkAgentAccess,
+  selectAgents,
 } from "@/services/supabase/users-service";
 import { revalidateTag, revalidatePath } from "next/cache";
-import { Agent } from "@/types/agent";
+import { Agent, AgentSummary } from "@/types/agent";
+
+/**
+ * Server action to get all agents for the current user
+ */
+export async function getAgentsAction(
+  filters?: ("all" | "mine" | "shared" | "bookmarked")[],
+  limit?: number,
+): Promise<AgentSummary[]> {
+  try {
+    const currentUser = await getSupabaseUser();
+    if (!currentUser) {
+      throw new Error("Unauthorized");
+    }
+
+    const agents = await selectAgents(
+      currentUser.id,
+      filters || ["mine", "shared"],
+      limit || 50,
+    );
+    return agents;
+  } catch (error) {
+    console.error("Error fetching agents:", error);
+    throw new Error("Failed to fetch agents");
+  }
+}
 
 /**
  * Server action to get a single agent by ID
