@@ -11,6 +11,8 @@ import {
 } from "@/services/supabase/users-service";
 import { revalidateTag, revalidatePath } from "next/cache";
 import { Agent, AgentSummary } from "@/types/agent";
+import { serverCache } from "@/lib/cache";
+import { CacheKeys } from "@/lib/cache/cache-keys";
 
 /**
  * Server action to get all agents for the current user
@@ -127,6 +129,9 @@ export async function updateAgentAction(
 
     await updateAgent(agentId, updates);
 
+    // Invalidate server cache for this agent's instructions
+    await serverCache.delete(CacheKeys.agentInstructions(agentId));
+
     // Revalidate caches
     revalidateTag("agents");
     revalidateTag(`agent-${agentId}`);
@@ -159,6 +164,9 @@ export async function deleteAgentAction(
     // TODO: Add access control when implementing workspaces/organizations
 
     await deleteAgent(agentId);
+
+    // Invalidate server cache for this agent's instructions
+    await serverCache.delete(CacheKeys.agentInstructions(agentId));
 
     // Revalidate caches
     revalidateTag("agents");

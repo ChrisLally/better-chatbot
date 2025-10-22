@@ -77,7 +77,6 @@ export const buildUserSystemPrompt = (
   const userInfo: string[] = [];
   if (user?.user_metadata?.name)
     userInfo.push(`Name: ${user.user_metadata.name}`);
-  if (user?.email) userInfo.push(`Email: ${user.email}`);
   if (userPreferences?.profession)
     userInfo.push(`Profession: ${userPreferences.profession}`);
 
@@ -160,7 +159,6 @@ export const buildSpeechSystemPrompt = (
   const userInfo: string[] = [];
   if (user?.user_metadata?.name)
     userInfo.push(`Name: ${user.user_metadata.name}`);
-  if (user?.email) userInfo.push(`Email: ${user.email}`);
   if (userPreferences?.profession)
     userInfo.push(`Profession: ${userPreferences.profession}`);
 

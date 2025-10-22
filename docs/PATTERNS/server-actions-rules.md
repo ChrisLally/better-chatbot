@@ -141,6 +141,19 @@ src/app/actions/
 
 ## Cache Revalidation Patterns
 
+### Types of Caches
+
+This application uses two types of caching that need consideration:
+
+1. **Next.js Response Cache** - Automatic caching of RSC/API routes
+   - Invalidated with `revalidateTag()` and `revalidatePath()`
+   - Affects client-side SWR hooks and server components
+
+2. **Server-Side Application Cache** - Redis/memory cache for expensive operations
+   - Manually invalidated with `serverCache.delete(cacheKey)`
+   - Used for things like agent instructions, MCP customizations
+   - Need to invalidate when data changes
+
 ### Standard Mutation Pattern
 
 All mutation Server Actions should follow this structure:
@@ -254,6 +267,34 @@ export async function addArchiveItemAction(
   return result
 }
 ```
+
+#### Server-Side Cache Invalidation
+```typescript
+import { serverCache } from '@/lib/cache'
+import { CacheKeys } from '@/lib/cache/cache-keys'
+
+export async function updateAgentAction(
+  agentId: string,
+  updates: AgentUpdate
+): Promise<Agent> {
+  const result = await updateAgent(agentId, updates)
+
+  // Invalidate Next.js response cache
+  revalidateTag('agents')
+  revalidateTag(`agent-${agentId}`)
+  revalidatePath('/agents')
+
+  // Invalidate server-side application cache
+  // Important for cached data like agent instructions used in API routes
+  await serverCache.delete(CacheKeys.agentInstructions(agentId))
+
+  return result
+}
+```
+
+**Why both?**
+- `revalidateTag()` handles client-side SWR cache and RSC revalidation
+- `serverCache.delete()` handles server-side caches used by API routes and long-lived processes
 
 ## Error Handling Patterns
 
@@ -446,7 +487,8 @@ export async function updateBookmarkAction(
 ## Best Practices Checklist
 
 - ✅ Server Actions only used for mutations or complex logic
-- ✅ All mutations include `revalidateTag()` calls
+- ✅ All mutations include `revalidateTag()` calls (Next.js cache)
+- ✅ Server-side caches invalidated with `serverCache.delete()` (if applicable)
 - ✅ Cache tags match SWR query keys used in hooks
 - ✅ Both collection and individual item tags invalidated for mutations
 - ✅ Authorization checks performed before mutations

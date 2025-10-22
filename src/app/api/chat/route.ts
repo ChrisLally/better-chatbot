@@ -63,6 +63,8 @@ import { colorize } from "consola/utils";
 import { generateUUID } from "lib/utils";
 import { nanoBananaTool, openaiImageTool } from "lib/ai/tools/image";
 import { ImageToolName } from "lib/ai/tools";
+import { serverCache } from "@/lib/cache";
+import { CacheKeys } from "@/lib/cache/cache-keys";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
@@ -364,6 +366,8 @@ const handler = async (request: Request) => {
 
         if (agent) {
           updateAgent(agent.id, {});
+          // Invalidate agent cache to ensure fresh data on next request
+          await serverCache.delete(CacheKeys.agentInstructions(agent.id));
         }
       },
       onError: handleError,
