@@ -21,9 +21,11 @@ export default async function AgentsPage() {
   // Fetch agents data on the server
   const allAgents = await selectAgents(user!.id, ["mine", "shared"], 50);
 
-  // Separate into my agents and shared agents
-  const myAgents = allAgents.filter((agent) => agent.userId === user!.id);
-  const sharedAgents = allAgents.filter((agent) => agent.userId !== user!.id);
+  // TODO: Temporarily show all agents as "My Agents" for development
+  // const myAgents = allAgents.filter((agent) => agent.userId === user!.id);
+  // const sharedAgents = allAgents.filter((agent) => agent.userId !== user!.id);
+  const myAgents = allAgents;
+  const sharedAgents = [];
 
   return (
     <AgentsList

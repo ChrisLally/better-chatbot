@@ -9,7 +9,6 @@ import { useTranslations } from "next-intl";
 import { generateUUID } from "lib/utils";
 import { AgentSummary } from "app-types/agent";
 import Link from "next/link";
-import { useAuth } from "@/context/auth-context";
 
 type Props = PropsWithChildren<{
   agent: AgentSummary;
@@ -20,8 +19,10 @@ type Props = PropsWithChildren<{
 export function AgentDropdown({ agent, children, side, align }: Props) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
-  const { user } = useAuth();
-  const isOwner = user?.id === agent.userId;
+  // TODO: Temporarily allow anyone to edit agents for development
+  // const { user } = useAuth();
+  // const isOwner = user?.id === agent.userId;
+  const isOwner = true;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

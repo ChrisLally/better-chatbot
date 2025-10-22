@@ -258,8 +258,8 @@ export async function getAgents(
  * Get agents with advanced filtering
  */
 export async function selectAgents(
-  userId: string,
-  filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["mine", "shared"],
+  _userId: string,
+  _filters: ("all" | "mine" | "shared" | "bookmarked")[] = ["mine", "shared"],
   limit?: number,
 ): Promise<AgentSummary[]> {
   const supabase = await createClient();
@@ -271,10 +271,11 @@ export async function selectAgents(
     )
     .eq("user_type", "agent");
 
+  // TODO: Temporarily show all agents for development - proper filtering not yet implemented
   // Apply filters
-  if (filters.includes("mine")) {
-    query = query.eq("id", userId); // Assuming 'id' is the owner ID for agents
-  }
+  // if (filters.includes("mine")) {
+  //   query = query.eq("id", userId); // Assuming 'id' is the owner ID for agents
+  // }
   // TODO: Implement 'shared' and 'bookmarked' filters when relevant relationships are established
 
   if (limit) {
