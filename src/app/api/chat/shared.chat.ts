@@ -10,6 +10,9 @@ import {
   ToolUIPart,
   getToolName,
   UIMessageStreamWriter,
+  streamText,
+  stepCountIs,
+  LanguageModel,
 } from "ai";
 import {
   ChatMention,
@@ -487,3 +490,182 @@ export const convertToSavePart = <T extends UIMessagePart<any, any>>(
     })
     .unwrap();
 };
+
+/**
+ * Unified stream execution for both streaming and background chat contexts.
+ * This function encapsulates the complete tool execution pipeline.
+ *
+ * @param model - The language model to use
+ * @param systemPrompt - System prompt for the model
+ * @param messages - Conversation messages
+ * @param mentions - Tool mentions to load (from agent instructions)
+ * @returns ExecutionResult with finalParts and metadata ready for persistence
+ */
+export async function executeAgentStream(
+  model: LanguageModel,
+  systemPrompt: string,
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  mentions: ChatMention[] = [],
+) {
+  // Load tools based on agent mentions
+  console.log(
+    `[executeAgentStream] Loading tools. Mentions: ${JSON.stringify(mentions)}`,
+  );
+
+  const MCP_TOOLS = await safe()
+    .map(() =>
+      loadMcpTools({
+        mentions,
+        allowedMcpServers: {},
+      }),
+    )
+    .orElse({});
+
+  console.log(
+    `[executeAgentStream] Loaded ${Object.keys(MCP_TOOLS).length} MCP tools`,
+  );
+
+  const WORKFLOW_TOOLS = await safe()
+    .map(() =>
+      loadWorkFlowTools({
+        mentions,
+        dataStream: undefined as any,
+      }),
+    )
+    .orElse({});
+
+  console.log(
+    `[executeAgentStream] Loaded ${Object.keys(WORKFLOW_TOOLS).length} Workflow tools`,
+  );
+
+  const APP_DEFAULT_TOOLS = await safe()
+    .map(() =>
+      loadAppDefaultTools({
+        mentions,
+        allowedAppDefaultToolkit: [],
+      }),
+    )
+    .orElse({});
+
+  console.log(
+    `[executeAgentStream] Loaded ${Object.keys(APP_DEFAULT_TOOLS).length} App Default tools`,
+  );
+
+  // Merge all tools
+  const tools: Record<string, Tool> = {
+    ...MCP_TOOLS,
+    ...WORKFLOW_TOOLS,
+    ...APP_DEFAULT_TOOLS,
+  };
+
+  console.log(
+    `[executeAgentStream] Total merged tools: ${Object.keys(tools).length}`,
+  );
+
+  // Create the stream with tools AND onFinish callback to capture complete response
+  let finishedMessage: any = null;
+
+  const result = streamText({
+    model,
+    system: systemPrompt,
+    messages,
+    tools: Object.keys(tools).length > 0 ? tools : undefined,
+    toolChoice: Object.keys(tools).length > 0 ? "auto" : undefined,
+    stopWhen: stepCountIs(10),
+    maxRetries: 2,
+    onFinish: async (finishResult) => {
+      // This callback receives the complete message with ALL parts (tool-calls AND tool-results)
+      console.log(`[executeAgentStream] onFinish callback triggered`);
+      finishedMessage = finishResult;
+    },
+  });
+
+  // CRITICAL FIX: Actively iterate over the stream to drive tool execution loop
+  // streamText requires active stream consumption to complete the asynchronous
+  // execution roundtrip: Tool Call -> Execute Tool -> Insert Result -> Re-call Model
+  console.log(
+    `[executeAgentStream] Starting stream iteration with ${Object.keys(tools).length} tools available`,
+  );
+  let eventCount = 0;
+  const uiStream = result.toUIMessageStream();
+  for await (const _event of uiStream) {
+    eventCount++;
+    // Actively read all stream events to force tool execution to completion
+    // The events are discarded; we only need the side effect of iteration
+  }
+  console.log(
+    `[executeAgentStream] Stream iteration complete. Processed ${eventCount} events`,
+  );
+
+  // The onFinish callback has now been called with the complete result
+  if (!finishedMessage) {
+    console.error("[executeAgentStream] onFinish callback was not called");
+    throw new Error("Tool execution did not complete properly");
+  }
+
+  console.log(`[executeAgentStream] Finished message received`);
+
+  // CRITICAL FIX: The tool execution data is in response.messages, not in finishedMessage properties!
+  // response.messages contains multiple message objects:
+  // - Assistant message with tool-call parts
+  // - Tool message with tool-result parts
+  // - Final assistant message with text response
+  // We need to collect ALL parts from ALL messages to build the complete conversation
+
+  // Get the response object which should now have all messages from the stream
+  const response = await result.response;
+  console.log(
+    `[executeAgentStream] Response messages count: ${response.messages?.length || 0}`,
+  );
+
+  const finalParts: any[] = [];
+
+  // Iterate through all messages and extract parts in order
+  if (response.messages && Array.isArray(response.messages)) {
+    response.messages.forEach((message: any, idx: number) => {
+      console.log(`[executeAgentStream] Message ${idx}: role=${message.role}`);
+
+      if (message.role === "assistant" || message.role === "tool") {
+        // Extract parts from message content
+        if (Array.isArray(message.content)) {
+          message.content.forEach((part: any) => {
+            console.log(
+              `[executeAgentStream]   Adding part: type=${part.type}`,
+            );
+            finalParts.push(convertToSavePart(part));
+          });
+        }
+      }
+    });
+  }
+
+  console.log(`[executeAgentStream] Final parts count: ${finalParts.length}`);
+  finalParts.forEach((part, idx) => {
+    console.log(
+      `[executeAgentStream]   Part ${idx}: type=${part.type}${part.type === "tool-call" ? ` toolName=${(part as any).toolName}` : part.type === "tool-result" ? ` toolName=${(part as any).toolName}` : ""}`,
+    );
+  });
+
+  // Get usage info
+  const usage = await result.usage;
+
+  // Build metadata
+  const metadata: ChatMetadata = {
+    toolChoice: Object.keys(tools).length > 0 ? "auto" : "none",
+    toolCount: Object.keys(tools).length,
+    usage: usage
+      ? {
+          inputTokens: usage.inputTokens || 0,
+          outputTokens: usage.outputTokens || 0,
+          totalTokens: ((usage.inputTokens || 0) +
+            (usage.outputTokens || 0)) as never,
+        }
+      : undefined,
+  };
+
+  return {
+    finalParts,
+    metadata,
+    fullResult: result,
+  };
+}

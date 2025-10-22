@@ -2,20 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/server-admin";
 import { customModelProvider } from "@/lib/ai/models";
 import { buildUserSystemPrompt } from "@/lib/ai/prompts";
-import { streamText, stepCountIs, Tool } from "ai";
 import {
   createMessage,
   getMessages as getThreadMessages,
 } from "@/services/supabase/chat-service";
 import { generateUUID } from "@/lib/utils";
 import {
+  convertToSavePart,
   loadMcpTools,
   loadWorkFlowTools,
   loadAppDefaultTools,
-  convertToSavePart,
 } from "@/app/api/chat/shared.chat";
-import { safe } from "ts-safe";
-import type { ChatMetadata } from "app-types/chat";
+import { safe, errorIf } from "ts-safe";
+import {
+  createUIMessageStream,
+  streamText,
+  stepCountIs,
+  convertToModelMessages,
+  UIMessage,
+} from "ai";
+import { ChatMetadata } from "app-types/chat";
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,208 +109,158 @@ export async function POST(request: NextRequest) {
       metadata: { agentId: agent_id },
     });
 
+    // Generate assistant message ID for saving response
+    const assistantMessageId = generateUUID();
+
+    // Build conversation messages from thread history
+    let conversationMessages: UIMessage[] = [];
+
+    // If this is a follow-up to an existing thread, fetch conversation history
+    if (!isNewThread) {
+      const previousMessages = await getThreadMessages(
+        agent.id,
+        conversationId,
+      );
+      conversationMessages = previousMessages.map((msg) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        parts: msg.parts,
+        metadata: msg.metadata,
+      }));
+    }
+
+    // Add the current user message (which was already saved)
+    conversationMessages.push({
+      id: userMessageId,
+      role: "user",
+      parts: [{ type: "text", text: message }],
+      metadata: { agentId: agent_id },
+    });
+
+    // Build system prompt with agent instructions
+    const systemPrompt = buildUserSystemPrompt(
+      undefined, // No user context for API calls
+      undefined, // No user preferences
+      agent,
+    );
+
+    // Get model
+    const model = customModelProvider.getModel({
+      provider: "openai",
+      model: "gpt-4",
+    });
+
+    // Setup metadata
+    const metadata: ChatMetadata = {
+      agentId: agent_id,
+      toolChoice: "auto",
+      toolCount: 0,
+    };
+
     // Trigger agent response generation in the background
     // Don't await - let it run asynchronously
     (async () => {
       try {
-        // Build system prompt with agent instructions
-        const systemPrompt = buildUserSystemPrompt(
-          undefined, // No user context for API calls
-          undefined, // No user preferences
-          agent,
-        );
+        const stream = createUIMessageStream({
+          execute: async ({ writer: dataStream }) => {
+            const mentions = agent.instructions?.mentions || [];
 
-        // Get model
-        const model = customModelProvider.getModel({
-          provider: "openai",
-          model: "gpt-4",
+            // Load tools based on mentions
+            const MCP_TOOLS = await safe()
+              .map(errorIf(() => !mentions.length && "No mentions"))
+              .map(() => loadMcpTools({ mentions }))
+              .orElse({});
+
+            const WORKFLOW_TOOLS = await safe()
+              .map(errorIf(() => !mentions.length && "No mentions"))
+              .map(() => loadWorkFlowTools({ mentions, dataStream }))
+              .orElse({});
+
+            const APP_DEFAULT_TOOLS = await safe()
+              .map(errorIf(() => !mentions.length && "No mentions"))
+              .map(() => loadAppDefaultTools({ mentions }))
+              .orElse({});
+
+            // Merge all tools
+            const vercelAITools = {
+              ...MCP_TOOLS,
+              ...WORKFLOW_TOOLS,
+              ...APP_DEFAULT_TOOLS,
+            };
+
+            metadata.toolCount = Object.keys(vercelAITools).length;
+
+            console.log(
+              `[Agent ${agent.id}] Loaded ${metadata.toolCount} tools (MCP: ${Object.keys(MCP_TOOLS).length}, Workflow: ${Object.keys(WORKFLOW_TOOLS).length}, Default: ${Object.keys(APP_DEFAULT_TOOLS).length})`,
+            );
+
+            // Create and consume the stream
+            const result = streamText({
+              model,
+              system: systemPrompt,
+              messages: convertToModelMessages(conversationMessages),
+              maxRetries: 2,
+              tools:
+                Object.keys(vercelAITools).length > 0
+                  ? vercelAITools
+                  : undefined,
+              stopWhen:
+                Object.keys(vercelAITools).length > 0
+                  ? stepCountIs(10)
+                  : undefined,
+              toolChoice:
+                Object.keys(vercelAITools).length > 0 ? "auto" : undefined,
+              abortSignal: request.signal,
+            });
+
+            // Actively consume stream to drive tool execution
+            result.consumeStream();
+
+            // Merge the result to dataStream using the same format as the main chat route
+            dataStream.merge(
+              result.toUIMessageStream({
+                messageMetadata: ({ part }) => {
+                  if (part.type == "finish") {
+                    metadata.usage = part.totalUsage;
+                    return metadata;
+                  }
+                },
+              }),
+            );
+          },
+
+          generateId: generateUUID,
+          onFinish: async ({ responseMessage }) => {
+            // Save the assistant message with streaming event format
+            await createMessage(agent.id, {
+              id: assistantMessageId,
+              threadId: conversationId,
+              role: responseMessage.role,
+              parts: responseMessage.parts.map(convertToSavePart),
+              metadata,
+            });
+
+            console.log(
+              `[Agent ${agent.id}] Saved assistant message with ${responseMessage.parts.length} parts`,
+            );
+          },
+          onError: (error) => {
+            console.error(`[Agent ${agent.id}] Stream error:`, error);
+            return "";
+          },
+          originalMessages: conversationMessages,
         });
 
-        // Generate assistant message ID for saving response
-        const assistantMessageId = generateUUID();
-
-        // Build conversation messages
-        let conversationMessages: Array<{
-          role: "user" | "assistant";
-          content: string;
-        }> = [];
-
-        // If this is a follow-up to an existing thread, fetch conversation history
-        if (!isNewThread) {
-          const previousMessages = await getThreadMessages(
-            agent.id,
-            conversationId,
-          );
-          conversationMessages = previousMessages.map((msg) => ({
-            role: msg.role as "user" | "assistant",
-            content: msg.parts
-              .filter((part) => part.type === "text")
-              .map((part) => (part as any).text)
-              .join(""),
-          }));
-        }
-
-        // Add the current user message (which was already saved)
-        conversationMessages.push({
-          role: "user",
-          content: message,
-        });
-
-        // Load tools based on agent mentions
-        const mentions = agent.instructions?.mentions || [];
-
-        console.log(
-          `[Agent ${agent.id}] Starting tool loading. Mentions: ${JSON.stringify(mentions)}`,
-        );
-
-        // Load MCP tools
-        const MCP_TOOLS = await safe()
-          .map(() =>
-            loadMcpTools({
-              mentions,
-              allowedMcpServers: {},
-            }),
-          )
-          .orElse({});
-
-        console.log(
-          `[Agent ${agent.id}] Loaded MCP tools: ${Object.keys(MCP_TOOLS).length}. Tool names: ${Object.keys(MCP_TOOLS).join(", ")}`,
-        );
-
-        // Load workflow tools (skip dataStream since not available in this context)
-        const WORKFLOW_TOOLS = await safe()
-          .map(() =>
-            loadWorkFlowTools({
-              mentions,
-              dataStream: undefined as any,
-            }),
-          )
-          .orElse({});
-
-        console.log(
-          `[Agent ${agent.id}] Loaded Workflow tools: ${Object.keys(WORKFLOW_TOOLS).length}`,
-        );
-
-        // Load app default tools
-        const APP_DEFAULT_TOOLS = await safe()
-          .map(() =>
-            loadAppDefaultTools({
-              mentions,
-              allowedAppDefaultToolkit: [], // No default toolkit for API calls
-            }),
-          )
-          .orElse({});
-
-        console.log(
-          `[Agent ${agent.id}] Loaded App Default tools: ${Object.keys(APP_DEFAULT_TOOLS).length}`,
-        );
-
-        // Merge all tools
-        const tools: Record<string, Tool> = {
-          ...MCP_TOOLS,
-          ...WORKFLOW_TOOLS,
-          ...APP_DEFAULT_TOOLS,
-        };
-
-        console.log(
-          `[Agent ${agent.id}] Total tools available: ${Object.keys(tools).length}. All tools: ${Object.keys(tools).join(", ")}`,
-        );
-
-        // Generate the response with tool support
-        // Key: We must use toUIMessageStream and iterate through it to get tool execution
-        const result = streamText({
-          model,
-          system: systemPrompt,
-          messages: conversationMessages,
-          tools: Object.keys(tools).length > 0 ? tools : undefined,
-          toolChoice: Object.keys(tools).length > 0 ? "auto" : undefined,
-          stopWhen: stepCountIs(10),
-          maxRetries: 2,
-        });
-
-        console.log(
-          `[Agent ${agent.id}] Starting to consume stream with ${Object.keys(tools).length} tools available`,
-        );
-
-        // Convert to UI message stream - this is what triggers tool execution
-        const uiStream = result.toUIMessageStream();
-
-        // Iterate through the stream to ensure full processing and tool execution
-        let eventCount = 0;
+        // Read through the stream to trigger onFinish callback
+        // The stream internally executes the tool pipeline and calls onFinish when done
+        const reader = stream.getReader();
         try {
-          for await (const _event of uiStream) {
-            eventCount++;
-            // Just consume the stream - the iteration itself triggers tool execution
+          while (true) {
+            const { done } = await reader.read();
+            if (done) break;
           }
-        } catch (streamError) {
-          console.error(
-            `[Agent ${agent.id}] Error during stream iteration:`,
-            streamError,
-          );
-        }
-
-        console.log(
-          `[Agent ${agent.id}] Stream iteration complete. Processed ${eventCount} events`,
-        );
-
-        // Now get the full response after stream is done
-        const response = await result.response;
-
-        console.log(
-          `[Agent ${agent.id}] Response available with ${response.messages?.length || 0} messages`,
-        );
-
-        // Extract the assistant message
-        const responseMessage = response.messages?.find(
-          (m) => m.role === "assistant",
-        );
-
-        if (!responseMessage) {
-          console.error(`[Agent ${agent.id}] No assistant message in response`);
-        } else {
-          console.log(
-            `[Agent ${agent.id}] Got assistant message, content is ${typeof responseMessage.content}`,
-          );
-
-          // Get the parts
-          const finalParts = Array.isArray(responseMessage.content)
-            ? (responseMessage.content as any[]).map(convertToSavePart)
-            : [{ type: "text" as const, text: responseMessage.content }];
-
-          console.log(
-            `[Agent ${agent.id}] Final parts (${finalParts.length}): ${finalParts.map((p: any) => p.type).join(", ")}`,
-          );
-
-          // Save the message
-          const toolChoice: "auto" | "none" | "manual" | undefined =
-            Object.keys(tools).length > 0 ? "auto" : "none";
-
-          const usage = await result.usage;
-          const metadata: ChatMetadata = {
-            agentId: agent_id,
-            toolChoice,
-            toolCount: Object.keys(tools).length,
-            usage: usage
-              ? {
-                  inputTokens: usage.inputTokens || 0,
-                  outputTokens: usage.outputTokens || 0,
-                  totalTokens: ((usage.inputTokens || 0) +
-                    (usage.outputTokens || 0)) as never,
-                }
-              : undefined,
-          };
-
-          await createMessage(agent.id, {
-            id: assistantMessageId,
-            threadId: conversationId,
-            role: "assistant",
-            parts: finalParts,
-            metadata,
-          });
-
-          console.log(
-            `[Agent ${agent.id}] Saved message with ${finalParts.length} parts`,
-          );
+        } catch (err) {
+          console.error(`[Agent ${agent.id}] Stream read error:`, err);
         }
       } catch (error) {
         console.error("Error generating agent response:", error);
