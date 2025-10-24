@@ -15,6 +15,7 @@ export default () => {
     env: {
       NO_HTTPS: process.env.NO_HTTPS,
     },
+    reactStrictMode: false,
     experimental: {
       taint: true,
       authInterrupts: true,
